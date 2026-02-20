@@ -119,3 +119,38 @@ export interface ProductAddon {
   name: string;
   price: number;
 }
+
+export enum OrderStatus {
+  Pending = 0,
+  Confirmed = 1,
+  Preparing = 2,
+  Ready = 3,
+  Delivered = 4,
+  Completed = 5,
+  Cancelled = 6,
+}
+
+export interface OrderItem {
+  id: string;
+  productId: string;
+  productName: string;
+  sizeName?: string;
+  unitPrice: number;
+  quantity: number;
+  totalPrice: number;
+  selectedAddons?: string[];
+}
+
+export interface Order {
+  id: string;
+  userId: string;
+  tableId: string;
+  tableNumber: number;
+  createdAt: string;
+  status: OrderStatus;
+  subtotal: number;
+  tax: number;
+  total: number;
+  specialInstructions?: string;
+  items: OrderItem[];
+}

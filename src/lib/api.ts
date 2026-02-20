@@ -92,3 +92,16 @@ export const uploadProductImage = (id: string, formData: FormData) =>
   api.post(`/admin/products/${id}/image`, formData, {
     headers: { 'Content-Type': 'multipart/form-data' },
   });
+
+// Orders
+export const getOrders = (status?: number) =>
+  api.get('/admin/orders', { params: status !== undefined ? { status } : {} });
+export const getOrder = (id: string) => api.get(`/admin/orders/${id}`);
+export const updateOrderStatus = (id: string, status: number) =>
+  api.put(`/admin/orders/${id}/status`, { status });
+
+// SignalR Hub URL
+export const getSignalRUrl = () => {
+  const baseUrl = process.env.NEXT_PUBLIC_API_URL || "https://yalla-co-menu-beckend-dev-47c9.twc1.net";
+  return baseUrl.replace('/api', '') + '/hubs/orders';
+};
