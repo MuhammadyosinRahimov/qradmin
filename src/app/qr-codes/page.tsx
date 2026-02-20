@@ -17,7 +17,7 @@ export default function QrCodesPage() {
   const [selectedRestaurant, setSelectedRestaurant] = useState<string>('');
   const [selectedTables, setSelectedTables] = useState<string[]>([]);
   const [selectedMenu, setSelectedMenu] = useState<string>('');
-  const [baseUrl, setBaseUrl] = useState('http://localhost:3000');
+  const [baseUrl, setBaseUrl] = useState('https://qr-yalla-lunch.vercel.app');
   const [generating, setGenerating] = useState(false);
   const [qrCodes, setQrCodes] = useState<QrCodeResponse[]>([]);
   const [isPreviewOpen, setIsPreviewOpen] = useState(false);
