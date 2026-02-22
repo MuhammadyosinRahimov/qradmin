@@ -7,7 +7,7 @@ import Input from '@/components/ui/Input';
 import Select from '@/components/ui/Select';
 import Modal from '@/components/ui/Modal';
 import ImageUpload from '@/components/ui/ImageUpload';
-import { getProducts, getCategories, getMenus, createProduct, updateProduct, deleteProduct, toggleProduct, uploadProductImage } from '@/lib/api';
+import { getProducts, getCategories, getMenus, createProduct, updateProduct, deleteProduct, toggleProduct, uploadProductImage, getImageUrl } from '@/lib/api';
 import { Product, Category, Menu } from '@/types';
 
 export default function ProductsPage() {
@@ -237,9 +237,9 @@ export default function ProductsPage() {
               className={`bg-white rounded-xl overflow-hidden shadow-sm ${!product.isAvailable ? 'opacity-60' : ''}`}
             >
               <div className="h-40 bg-gray-100 relative">
-                {product.imageUrl ? (
+                {getImageUrl(product.imageUrl) ? (
                   <img
-                    src={product.imageUrl}
+                    src={getImageUrl(product.imageUrl)!}
                     alt={product.name}
                     className="w-full h-full object-cover"
                   />

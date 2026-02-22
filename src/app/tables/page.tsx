@@ -16,6 +16,7 @@ export default function TablesPage() {
   const [menus, setMenus] = useState<Menu[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedRestaurant, setSelectedRestaurant] = useState<string>('');
+  const [selectedType, setSelectedType] = useState<string>('');
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingTable, setEditingTable] = useState<Table | null>(null);
   const [formData, setFormData] = useState({
@@ -165,8 +166,8 @@ export default function TablesPage() {
         </Button>
       </div>
 
-      {/* Filter */}
-      <div className="mb-6">
+      {/* Filters */}
+      <div className="mb-6 flex gap-4 flex-wrap">
         <Select
           id="restaurant-filter"
           label="Фильтр по ресторану"
@@ -175,6 +176,17 @@ export default function TablesPage() {
           options={[
             { value: '', label: 'Все рестораны' },
             ...restaurants.map((r) => ({ value: r.id, label: r.name })),
+          ]}
+          className="max-w-xs"
+        />
+        <Select
+          id="type-filter"
+          label="Фильтр по типу стола"
+          value={selectedType}
+          onChange={(e) => setSelectedType(e.target.value)}
+          options={[
+            { value: '', label: 'Все типы' },
+            ...tableTypes.map((t) => ({ value: t.value.toString(), label: t.name })),
           ]}
           className="max-w-xs"
         />
@@ -193,18 +205,30 @@ export default function TablesPage() {
             ))}
           </div>
         </div>
-      ) : tables.length === 0 ? (
+      ) : (() => {
+        const filteredTables = tables.filter(table =>
+          selectedType === '' || table.type.toString() === selectedType
+        );
+
+        return filteredTables.length === 0 ? (
         <div className="text-center py-12 bg-white rounded-xl">
           <svg className="w-16 h-16 mx-auto text-gray-300 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h7" />
           </svg>
-          <p className="text-gray-500 mb-4">Столы не найдены</p>
+          <p className="text-gray-500 mb-4">
+            {selectedType ? 'Столы выбранного типа не найдены' : 'Столы не найдены'}
+          </p>
           <Button onClick={openCreateModal} disabled={restaurants.length === 0}>
             Добавить стол
           </Button>
         </div>
       ) : (
         <div className="bg-white rounded-xl shadow-sm overflow-hidden">
+          <div className="px-6 py-3 bg-gray-50 border-b border-gray-200 flex items-center justify-between">
+            <span className="text-sm text-gray-500">
+              Найдено: {filteredTables.length} {filteredTables.length === 1 ? 'стол' : filteredTables.length < 5 ? 'стола' : 'столов'}
+            </span>
+          </div>
           <table className="w-full">
             <thead>
               <tr className="bg-gray-50 border-b border-gray-200">
@@ -218,7 +242,7 @@ export default function TablesPage() {
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-200">
-              {tables.map((table) => (
+              {filteredTables.map((table) => (
                 <tr key={table.id} className="hover:bg-gray-50">
                   <td className="px-6 py-4">
                     <span className="text-lg font-semibold text-gray-900">#{table.number}</span>
@@ -268,7 +292,8 @@ export default function TablesPage() {
             </tbody>
           </table>
         </div>
-      )}
+      );
+      })()}
 
       {/* Modal */}
       <Modal

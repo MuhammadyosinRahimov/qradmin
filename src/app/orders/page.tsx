@@ -4,8 +4,11 @@ import { useEffect, useState, useRef, useCallback } from 'react';
 import * as signalR from '@microsoft/signalr';
 import AdminLayout from '@/components/layout/AdminLayout';
 import Button from '@/components/ui/Button';
-import { getOrders, updateOrderStatus, getSignalRUrl } from '@/lib/api';
-import { Order, OrderStatus } from '@/types';
+import Modal from '@/components/ui/Modal';
+import Input from '@/components/ui/Input';
+import { getOrders, updateOrderStatus, getSignalRUrl, cancelOrderItem, confirmPendingItems, getRestaurantStatus, toggleRestaurantOrders } from '@/lib/api';
+import { Order, OrderStatus, OrderItemStatus, OrderItemStatusNames } from '@/types';
+import { useAuthStore } from '@/stores/authStore';
 
 const statusLabels: Record<OrderStatus, string> = {
   [OrderStatus.Pending]: 'Новый',
@@ -36,6 +39,14 @@ export default function OrdersPage() {
   const connectionRef = useRef<signalR.HubConnection | null>(null);
   const audioContextRef = useRef<AudioContext | null>(null);
   const [soundEnabled, setSoundEnabled] = useState(false);
+  const [cancellingItemId, setCancellingItemId] = useState<string | null>(null);
+  const { getRestaurantId, admin } = useAuthStore();
+
+  // Pause orders state
+  const [isPauseModalOpen, setIsPauseModalOpen] = useState(false);
+  const [acceptingOrders, setAcceptingOrders] = useState(true);
+  const [pauseMessage, setPauseMessage] = useState('');
+  const [togglingPause, setTogglingPause] = useState(false);
 
   // Initialize AudioContext on user interaction
   const initAudio = useCallback(() => {
@@ -101,17 +112,90 @@ export default function OrdersPage() {
     }
   }, []);
 
+  // Fetch restaurant status
+  const fetchRestaurantStatus = useCallback(async () => {
+    const restaurantId = getRestaurantId() || admin?.restaurantId;
+    if (restaurantId) {
+      try {
+        const status = await getRestaurantStatus(restaurantId);
+        setAcceptingOrders(status.data.acceptingOrders);
+        setPauseMessage(status.data.pauseMessage || '');
+      } catch (error) {
+        console.error('Error fetching restaurant status:', error);
+      }
+    }
+  }, [getRestaurantId, admin]);
+
+  // Toggle restaurant orders
+  const handleTogglePause = async () => {
+    const restaurantId = getRestaurantId() || admin?.restaurantId;
+    if (!restaurantId) return;
+
+    setTogglingPause(true);
+    try {
+      await toggleRestaurantOrders(restaurantId, !acceptingOrders, pauseMessage || undefined);
+      setAcceptingOrders(!acceptingOrders);
+      setIsPauseModalOpen(false);
+    } catch (error) {
+      console.error('Error toggling restaurant orders:', error);
+      alert('Ошибка при изменении статуса');
+    } finally {
+      setTogglingPause(false);
+    }
+  };
+
   // Fetch orders
   const fetchOrders = useCallback(async () => {
     try {
-      const response = await getOrders(filter === 'all' ? undefined : filter);
+      const restaurantId = getRestaurantId();
+      const response = await getOrders(filter === 'all' ? undefined : filter, restaurantId || undefined);
       setOrders(response.data);
     } catch (error) {
       console.error('Error fetching orders:', error);
     } finally {
       setLoading(false);
     }
-  }, [filter]);
+  }, [filter, getRestaurantId]);
+
+  // Fetch restaurant status on mount
+  useEffect(() => {
+    fetchRestaurantStatus();
+  }, [fetchRestaurantStatus]);
+
+  // Cancel item handler
+  const handleCancelItem = async (orderId: string, itemId: string) => {
+    const reason = prompt('Причина отмены (необязательно):');
+    setCancellingItemId(itemId);
+    try {
+      await cancelOrderItem(orderId, itemId, reason || undefined);
+      fetchOrders();
+      if (selectedOrder && selectedOrder.id === orderId) {
+        const response = await getOrders();
+        const updated = response.data.find((o: Order) => o.id === orderId);
+        if (updated) setSelectedOrder(updated);
+      }
+    } catch (error) {
+      console.error('Error cancelling item:', error);
+      alert('Ошибка при отмене позиции');
+    } finally {
+      setCancellingItemId(null);
+    }
+  };
+
+  // Confirm pending items handler
+  const handleConfirmPendingItems = async (orderId: string) => {
+    try {
+      await confirmPendingItems(orderId);
+      fetchOrders();
+      if (selectedOrder && selectedOrder.id === orderId) {
+        const response = await getOrders();
+        const updated = response.data.find((o: Order) => o.id === orderId);
+        if (updated) setSelectedOrder(updated);
+      }
+    } catch (error) {
+      console.error('Error confirming items:', error);
+    }
+  };
 
   // Initialize SignalR connection
   useEffect(() => {
@@ -208,6 +292,26 @@ export default function OrdersPage() {
   return (
     <AdminLayout>
 
+      {/* Pause status banner */}
+      {!acceptingOrders && (
+        <div className="mb-4 p-4 bg-red-50 border border-red-200 rounded-xl flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 bg-red-100 rounded-full flex items-center justify-center">
+              <svg className="w-5 h-5 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 9v6m4-6v6m7-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+            </div>
+            <div>
+              <p className="font-semibold text-red-800">Приём заказов приостановлен</p>
+              {pauseMessage && <p className="text-sm text-red-600">{pauseMessage}</p>}
+            </div>
+          </div>
+          <Button onClick={() => setIsPauseModalOpen(true)} size="sm">
+            Возобновить
+          </Button>
+        </div>
+      )}
+
       <div className="mb-6 flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold text-gray-900">
@@ -221,6 +325,32 @@ export default function OrdersPage() {
           <p className="text-gray-500 mt-1">Управление заказами в реальном времени</p>
         </div>
         <div className="flex gap-2">
+          {/* Pause/Resume button */}
+          <button
+            onClick={() => setIsPauseModalOpen(true)}
+            className={`px-4 py-2 rounded-lg font-medium transition-colors flex items-center gap-2 ${
+              acceptingOrders
+                ? 'bg-red-100 text-red-700 border border-red-300 hover:bg-red-200'
+                : 'bg-green-100 text-green-700 border border-green-300 hover:bg-green-200'
+            }`}
+          >
+            {acceptingOrders ? (
+              <>
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 9v6m4-6v6m7-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+                Приостановить
+              </>
+            ) : (
+              <>
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z" />
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+                Возобновить
+              </>
+            )}
+          </button>
           <button
             onClick={() => {
               initAudio();
@@ -317,13 +447,30 @@ export default function OrdersPage() {
                     <span className="text-xl font-bold text-blue-600">#{order.tableNumber}</span>
                   </div>
                   <div>
-                    <h3 className="font-semibold text-gray-900">Стол #{order.tableNumber}</h3>
+                    <h3 className="font-semibold text-gray-900">
+                      {order.tableName || `Стол #${order.tableNumber}`}
+                    </h3>
+                    {order.tableTypeName && (
+                      <span className="inline-block text-xs bg-gray-100 text-gray-600 px-2 py-0.5 rounded mr-2">
+                        {order.tableTypeName}
+                      </span>
+                    )}
                     <p className="text-sm text-gray-500">{formatDate(order.createdAt)}</p>
+                    {order.restaurantName && (
+                      <p className="text-xs text-blue-500">{order.restaurantName}</p>
+                    )}
                   </div>
                 </div>
-                <span className={`px-3 py-1 rounded-full text-xs font-medium ${statusColors[order.status]}`}>
-                  {statusLabels[order.status]}
-                </span>
+                <div className="flex flex-col items-end gap-1">
+                  <span className={`px-3 py-1 rounded-full text-xs font-medium ${statusColors[order.status]}`}>
+                    {statusLabels[order.status]}
+                  </span>
+                  {order.hasPendingItems && (
+                    <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-orange-100 text-orange-700 animate-pulse">
+                      Новые блюда
+                    </span>
+                  )}
+                </div>
               </div>
 
               <div className="space-y-2 mb-4">
@@ -369,9 +516,19 @@ export default function OrdersPage() {
           <div className="bg-white rounded-xl w-full max-w-lg max-h-[90vh] overflow-y-auto">
             <div className="p-6 border-b border-gray-200">
               <div className="flex items-center justify-between">
-                <h2 className="text-xl font-bold text-gray-900">
-                  Заказ - Стол #{selectedOrder.tableNumber}
-                </h2>
+                <div>
+                  <h2 className="text-xl font-bold text-gray-900">
+                    {selectedOrder.tableName || `Стол #${selectedOrder.tableNumber}`}
+                  </h2>
+                  {selectedOrder.tableTypeName && (
+                    <span className="inline-block text-xs bg-gray-100 text-gray-600 px-2 py-0.5 rounded mt-1">
+                      {selectedOrder.tableTypeName}
+                    </span>
+                  )}
+                  {selectedOrder.restaurantName && (
+                    <p className="text-sm text-blue-500 mt-1">{selectedOrder.restaurantName}</p>
+                  )}
+                </div>
                 <button
                   onClick={() => setSelectedOrder(null)}
                   className="text-gray-400 hover:text-gray-600"
@@ -385,35 +542,94 @@ export default function OrdersPage() {
             </div>
 
             <div className="p-6">
-              <div className="mb-4">
+              <div className="mb-4 flex items-center gap-2">
                 <span className={`px-3 py-1 rounded-full text-sm font-medium ${statusColors[selectedOrder.status]}`}>
                   {statusLabels[selectedOrder.status]}
                 </span>
+                {selectedOrder.hasPendingItems && (
+                  <span className="px-3 py-1 rounded-full text-sm font-medium bg-orange-100 text-orange-700">
+                    Есть новые блюда
+                  </span>
+                )}
               </div>
+
+              {/* Confirm pending items button */}
+              {selectedOrder.hasPendingItems && selectedOrder.status !== OrderStatus.Cancelled && (
+                <div className="mb-4 p-3 bg-orange-50 rounded-lg flex items-center justify-between">
+                  <p className="text-sm text-orange-700">Клиент добавил новые блюда</p>
+                  <Button
+                    size="sm"
+                    onClick={() => handleConfirmPendingItems(selectedOrder.id)}
+                  >
+                    Подтвердить все
+                  </Button>
+                </div>
+              )}
 
               <h3 className="font-semibold text-gray-900 mb-3">Позиции заказа</h3>
               <div className="space-y-3 mb-6">
-                {selectedOrder.items.map((item) => (
-                  <div key={item.id} className="flex justify-between items-start">
-                    <div>
-                      <p className="font-medium text-gray-900">{item.productName}</p>
-                      {item.sizeName && (
-                        <p className="text-sm text-gray-500">{item.sizeName}</p>
-                      )}
-                      {item.selectedAddons && item.selectedAddons.length > 0 && (
+                {selectedOrder.items.map((item) => {
+                  const isCancelled = item.status === OrderItemStatus.Cancelled;
+                  const isPending = item.status === OrderItemStatus.Pending;
+
+                  return (
+                    <div
+                      key={item.id}
+                      className={`flex justify-between items-start p-2 rounded-lg ${
+                        isCancelled ? 'bg-red-50 opacity-60' :
+                        isPending ? 'bg-orange-50 border-2 border-orange-200' : ''
+                      }`}
+                    >
+                      <div className="flex-1">
+                        <div className="flex items-center gap-2">
+                          <p className={`font-medium ${isCancelled ? 'text-gray-400 line-through' : 'text-gray-900'}`}>
+                            {item.productName}
+                          </p>
+                          <span className={`text-xs px-2 py-0.5 rounded-full ${
+                            isCancelled ? 'bg-red-100 text-red-700' :
+                            isPending ? 'bg-orange-100 text-orange-700' :
+                            'bg-green-100 text-green-700'
+                          }`}>
+                            {OrderItemStatusNames[item.status]}
+                          </span>
+                        </div>
+                        {item.sizeName && (
+                          <p className="text-sm text-gray-500">{item.sizeName}</p>
+                        )}
+                        {item.selectedAddons && item.selectedAddons.length > 0 && (
+                          <p className="text-sm text-gray-500">
+                            + {item.selectedAddons.join(', ')}
+                          </p>
+                        )}
                         <p className="text-sm text-gray-500">
-                          + {item.selectedAddons.join(', ')}
+                          {formatPrice(item.unitPrice)} TJS x {item.quantity}
                         </p>
-                      )}
-                      <p className="text-sm text-gray-500">
-                        {formatPrice(item.unitPrice)} ₽ × {item.quantity}
-                      </p>
+                        {item.cancelReason && (
+                          <p className="text-xs text-red-500 mt-1">
+                            Причина: {item.cancelReason}
+                          </p>
+                        )}
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <span className={`font-medium ${isCancelled ? 'text-gray-400 line-through' : 'text-gray-900'}`}>
+                          {formatPrice(item.totalPrice)} TJS
+                        </span>
+                        {!isCancelled && selectedOrder.status !== OrderStatus.Completed && selectedOrder.status !== OrderStatus.Cancelled && (
+                          <button
+                            onClick={() => handleCancelItem(selectedOrder.id, item.id)}
+                            disabled={cancellingItemId === item.id}
+                            className="p-1 text-red-400 hover:text-red-600 hover:bg-red-50 rounded transition-colors disabled:opacity-50"
+                            title="Отменить позицию"
+                          >
+                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                            </svg>
+                          </button>
+                        )}
+                      </div>
                     </div>
-                    <span className="font-medium text-gray-900">
-                      {formatPrice(item.totalPrice)} ₽
-                    </span>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
 
               {selectedOrder.specialInstructions && (
@@ -426,15 +642,15 @@ export default function OrdersPage() {
               <div className="border-t border-gray-200 pt-4 space-y-2">
                 <div className="flex justify-between text-gray-600">
                   <span>Подитог</span>
-                  <span>{formatPrice(selectedOrder.subtotal)} ₽</span>
+                  <span>{formatPrice(selectedOrder.subtotal)} TJS</span>
                 </div>
                 <div className="flex justify-between text-gray-600">
-                  <span>Налог (10%)</span>
-                  <span>{formatPrice(selectedOrder.tax)} ₽</span>
+                  <span>Обслуживание (10%)</span>
+                  <span>{formatPrice(selectedOrder.serviceFee)} TJS</span>
                 </div>
                 <div className="flex justify-between font-bold text-lg text-gray-900">
                   <span>Итого</span>
-                  <span>{formatPrice(selectedOrder.total)} ₽</span>
+                  <span>{formatPrice(selectedOrder.total)} TJS</span>
                 </div>
               </div>
 
@@ -459,7 +675,7 @@ export default function OrdersPage() {
                         setSelectedOrder(null);
                       }}
                     >
-                      Отменить
+                      Отменить заказ
                     </Button>
                   )}
               </div>
@@ -467,6 +683,59 @@ export default function OrdersPage() {
           </div>
         </div>
       )}
+
+      {/* Pause orders modal */}
+      <Modal
+        isOpen={isPauseModalOpen}
+        onClose={() => setIsPauseModalOpen(false)}
+        title={acceptingOrders ? 'Приостановить приём заказов' : 'Возобновить приём заказов'}
+        size="sm"
+      >
+        <div className="space-y-4">
+          {acceptingOrders ? (
+            <>
+              <p className="text-gray-600">
+                Клиенты не смогут оформить новые заказы, пока приём приостановлен.
+              </p>
+              <Input
+                id="pauseMessage"
+                label="Сообщение для клиентов (необязательно)"
+                value={pauseMessage}
+                onChange={(e) => setPauseMessage(e.target.value)}
+                placeholder="Например: Технический перерыв, вернёмся через 30 минут"
+              />
+              <div className="p-3 bg-yellow-50 rounded-lg">
+                <p className="text-sm text-yellow-700">
+                  Текущие заказы продолжат обрабатываться. Приостановлен будет только приём новых заказов.
+                </p>
+              </div>
+            </>
+          ) : (
+            <p className="text-gray-600">
+              После возобновления клиенты снова смогут оформлять заказы.
+            </p>
+          )}
+
+          <div className="flex gap-3 pt-4">
+            <Button
+              type="button"
+              variant="secondary"
+              onClick={() => setIsPauseModalOpen(false)}
+              className="flex-1"
+            >
+              Отмена
+            </Button>
+            <Button
+              onClick={handleTogglePause}
+              isLoading={togglingPause}
+              variant={acceptingOrders ? 'danger' : 'primary'}
+              className="flex-1"
+            >
+              {acceptingOrders ? 'Приостановить' : 'Возобновить'}
+            </Button>
+          </div>
+        </div>
+      </Modal>
     </AdminLayout>
   );
 }

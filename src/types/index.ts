@@ -6,6 +6,8 @@ export interface Restaurant {
   phone?: string;
   logoUrl?: string;
   isActive: boolean;
+  acceptingOrders: boolean;
+  pauseMessage?: string;
   createdAt: string;
   menuCount: number;
   tableCount: number;
@@ -40,6 +42,10 @@ export interface Category {
   productCount: number;
   parentCategoryId?: string | null;
   parentCategoryName?: string | null;
+  availableFrom?: string | null;
+  availableTo?: string | null;
+  isTemporarilyDisabled: boolean;
+  isCurrentlyAvailable: boolean;
 }
 
 export enum TableType {
@@ -50,6 +56,15 @@ export enum TableType {
   Кабинка = 4,
   Детский = 5,
 }
+
+export const TableTypeNames: Record<number, string> = {
+  0: 'Стандартный',
+  1: 'VIP',
+  2: 'Барная стойка',
+  3: 'Терраса',
+  4: 'Кабинка',
+  5: 'Детский',
+};
 
 export interface TableTypeOption {
   value: number;
@@ -84,11 +99,19 @@ export interface Admin {
   id: string;
   email: string;
   name: string;
+  role: 'Admin' | 'RestaurantAdmin';
+  restaurantId?: string;
+  restaurantName?: string;
 }
 
 export interface AuthResponse {
   token: string;
-  admin: Admin;
+  adminId: string;
+  name: string;
+  email: string;
+  role: 'Admin' | 'RestaurantAdmin';
+  restaurantId?: string;
+  restaurantName?: string;
 }
 
 export interface Product {
@@ -132,6 +155,28 @@ export enum OrderStatus {
   Cancelled = 6,
 }
 
+export const OrderStatusNames: Record<number, string> = {
+  0: 'Ожидает',
+  1: 'Подтверждён',
+  2: 'Готовится',
+  3: 'Готов',
+  4: 'Доставлен',
+  5: 'Завершён',
+  6: 'Отменён',
+};
+
+export enum OrderItemStatus {
+  Pending = 0,
+  Active = 1,
+  Cancelled = 2,
+}
+
+export const OrderItemStatusNames: Record<number, string> = {
+  0: 'Новый',
+  1: 'Активен',
+  2: 'Отменён',
+};
+
 export interface OrderItem {
   id: string;
   productId: string;
@@ -141,6 +186,9 @@ export interface OrderItem {
   quantity: number;
   totalPrice: number;
   selectedAddons?: string[];
+  status: OrderItemStatus;
+  createdAt?: string;
+  cancelReason?: string;
 }
 
 export interface Order {
@@ -148,11 +196,16 @@ export interface Order {
   userId: string;
   tableId: string;
   tableNumber: number;
+  tableName?: string;
+  tableTypeName?: string;
+  restaurantId?: string;
+  restaurantName?: string;
   createdAt: string;
   status: OrderStatus;
   subtotal: number;
-  tax: number;
+  serviceFee: number; // renamed from tax
   total: number;
   specialInstructions?: string;
   items: OrderItem[];
+  hasPendingItems: boolean;
 }

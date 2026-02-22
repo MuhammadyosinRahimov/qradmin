@@ -2,7 +2,7 @@
 
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
-import { Admin } from '@/types';
+import { Admin, AuthResponse } from '@/types';
 import { adminLogin } from '@/lib/api';
 
 interface AuthState {
@@ -14,11 +14,13 @@ interface AuthState {
   login: (email: string, password: string) => Promise<boolean>;
   logout: () => void;
   clearError: () => void;
+  isSuperAdmin: () => boolean;
+  getRestaurantId: () => string | null;
 }
 
 export const useAuthStore = create<AuthState>()(
   persist(
-    (set) => ({
+    (set, get) => ({
       token: null,
       admin: null,
       isAuthenticated: false,
@@ -29,12 +31,21 @@ export const useAuthStore = create<AuthState>()(
         set({ isLoading: true, error: null });
         try {
           const response = await adminLogin(email, password);
-          const { token, admin } = response.data;
+          const data: AuthResponse = response.data;
 
-          localStorage.setItem('admin_token', token);
+          const admin: Admin = {
+            id: data.adminId,
+            email: data.email,
+            name: data.name,
+            role: data.role,
+            restaurantId: data.restaurantId,
+            restaurantName: data.restaurantName,
+          };
+
+          localStorage.setItem('admin_token', data.token);
 
           set({
-            token,
+            token: data.token,
             admin,
             isAuthenticated: true,
             isLoading: false,
@@ -42,7 +53,7 @@ export const useAuthStore = create<AuthState>()(
           return true;
         } catch (error: any) {
           set({
-            error: error.response?.data?.message || 'Ошибка авторизации',
+            error: error.response?.data?.error || 'Ошибка авторизации',
             isLoading: false,
           });
           return false;
@@ -59,6 +70,16 @@ export const useAuthStore = create<AuthState>()(
       },
 
       clearError: () => set({ error: null }),
+
+      isSuperAdmin: () => {
+        const admin = get().admin;
+        return admin?.role === 'Admin';
+      },
+
+      getRestaurantId: () => {
+        const admin = get().admin;
+        return admin?.restaurantId || null;
+      },
     }),
     {
       name: 'admin-auth',

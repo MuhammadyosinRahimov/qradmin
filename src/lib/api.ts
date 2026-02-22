@@ -2,6 +2,15 @@ import axios from 'axios';
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "https://yalla-co-menu-beckend-dev-47c9.twc1.net/api";
 
+// Helper to build full image URL from relative path
+export const getImageUrl = (imageUrl: string | null | undefined): string | null => {
+  if (!imageUrl) return null;
+  if (imageUrl.startsWith("http")) return imageUrl;
+  // Remove /api from the base URL to get the server URL
+  const serverUrl = API_BASE_URL.replace('/api', '');
+  return `${serverUrl}${imageUrl}`;
+};
+
 const api = axios.create({
   baseURL: API_BASE_URL,
   headers: {
@@ -50,6 +59,9 @@ export const getRestaurant = (id: string) => api.get(`/admin/restaurants/${id}`)
 export const createRestaurant = (data: any) => api.post('/admin/restaurants', data);
 export const updateRestaurant = (id: string, data: any) => api.put(`/admin/restaurants/${id}`, data);
 export const deleteRestaurant = (id: string) => api.delete(`/admin/restaurants/${id}`);
+export const toggleRestaurantOrders = (id: string, acceptingOrders: boolean, pauseMessage?: string) =>
+  api.post(`/admin/restaurants/${id}/toggle-orders`, { acceptingOrders, pauseMessage });
+export const getRestaurantStatus = (id: string) => api.get(`/admin/restaurants/${id}/status`);
 
 // Menus
 export const getMenus = (restaurantId?: string) =>
@@ -83,6 +95,10 @@ export const getCategories = () => api.get('/admin/categories');
 export const createCategory = (data: any) => api.post('/admin/categories', data);
 export const updateCategory = (id: string, data: any) => api.put(`/admin/categories/${id}`, data);
 export const deleteCategory = (id: string) => api.delete(`/admin/categories/${id}`);
+export const toggleCategoryAvailability = (id: string, isTemporarilyDisabled: boolean) =>
+  api.post(`/admin/categories/${id}/toggle-availability`, { isTemporarilyDisabled });
+export const setCategorySchedule = (id: string, availableFrom?: string, availableTo?: string) =>
+  api.post(`/admin/categories/${id}/schedule`, { availableFrom, availableTo });
 
 // Products
 export const getProducts = (categoryId?: string, menuId?: string) =>
@@ -98,11 +114,15 @@ export const uploadProductImage = (id: string, formData: FormData) =>
   });
 
 // Orders
-export const getOrders = (status?: number) =>
-  api.get('/admin/orders', { params: status !== undefined ? { status } : {} });
+export const getOrders = (status?: number, restaurantId?: string) =>
+  api.get('/admin/orders', { params: { status, restaurantId } });
 export const getOrder = (id: string) => api.get(`/admin/orders/${id}`);
 export const updateOrderStatus = (id: string, status: number) =>
   api.put(`/admin/orders/${id}/status`, { status });
+export const cancelOrderItem = (orderId: string, itemId: string, reason?: string) =>
+  api.post(`/admin/orders/${orderId}/items/${itemId}/cancel`, { reason });
+export const confirmPendingItems = (orderId: string) =>
+  api.post(`/admin/orders/${orderId}/items/confirm`);
 
 // SignalR Hub URL
 export const getSignalRUrl = () => {

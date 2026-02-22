@@ -6,21 +6,28 @@ import Button from '@/components/ui/Button';
 import Input from '@/components/ui/Input';
 import Select from '@/components/ui/Select';
 import Modal from '@/components/ui/Modal';
-import { getCategories, createCategory, updateCategory, deleteCategory } from '@/lib/api';
+import { getCategories, createCategory, updateCategory, deleteCategory, toggleCategoryAvailability, setCategorySchedule } from '@/lib/api';
 import { Category } from '@/types';
 
 export default function CategoriesPage() {
   const [categories, setCategories] = useState<Category[]>([]);
   const [loading, setLoading] = useState(true);
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isScheduleModalOpen, setIsScheduleModalOpen] = useState(false);
   const [editingCategory, setEditingCategory] = useState<Category | null>(null);
+  const [scheduleCategory, setScheduleCategory] = useState<Category | null>(null);
   const [formData, setFormData] = useState({
     name: '',
     icon: '',
     sortOrder: 1,
     parentCategoryId: null as string | null,
   });
+  const [scheduleData, setScheduleData] = useState({
+    availableFrom: '',
+    availableTo: '',
+  });
   const [saving, setSaving] = useState(false);
+  const [togglingId, setTogglingId] = useState<string | null>(null);
 
   useEffect(() => {
     fetchCategories();
@@ -111,6 +118,50 @@ export default function CategoriesPage() {
     }
   };
 
+  const handleToggleAvailability = async (category: Category) => {
+    setTogglingId(category.id);
+    try {
+      await toggleCategoryAvailability(category.id, !category.isTemporarilyDisabled);
+      await fetchCategories();
+    } catch (error) {
+      console.error('Error toggling category:', error);
+    } finally {
+      setTogglingId(null);
+    }
+  };
+
+  const openScheduleModal = (category: Category) => {
+    setScheduleCategory(category);
+    setScheduleData({
+      availableFrom: category.availableFrom || '',
+      availableTo: category.availableTo || '',
+    });
+    setIsScheduleModalOpen(true);
+  };
+
+  const handleSaveSchedule = async () => {
+    if (!scheduleCategory) return;
+    setSaving(true);
+    try {
+      await setCategorySchedule(
+        scheduleCategory.id,
+        scheduleData.availableFrom || undefined,
+        scheduleData.availableTo || undefined
+      );
+      await fetchCategories();
+      setIsScheduleModalOpen(false);
+    } catch (error) {
+      console.error('Error saving schedule:', error);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const formatTime = (time: string | null | undefined) => {
+    if (!time) return null;
+    return time.substring(0, 5); // HH:mm format
+  };
+
   const iconOptions = [
     'local_pizza', 'lunch_dining', 'salad', 'local_cafe', 'cake',
     'ramen_dining', 'set_meal', 'fastfood', 'icecream', 'local_bar',
@@ -155,12 +206,43 @@ export default function CategoriesPage() {
           {getCategoriesWithChildren().map((category) => (
             <div key={category.id}>
               {/* Parent category */}
-              <div className="bg-white rounded-xl p-6 shadow-sm">
+              <div className={`bg-white rounded-xl p-6 shadow-sm ${category.isTemporarilyDisabled ? 'opacity-60 border-2 border-red-200' : ''}`}>
                 <div className="flex items-start justify-between mb-4">
                   <div className="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center text-blue-600">
                     <span className="material-icons text-2xl">{category.icon || 'restaurant'}</span>
                   </div>
                   <div className="flex gap-1">
+                    {/* Toggle availability button */}
+                    <button
+                      onClick={() => handleToggleAvailability(category)}
+                      disabled={togglingId === category.id}
+                      className={`p-2 rounded-lg transition-colors disabled:opacity-50 ${
+                        category.isTemporarilyDisabled
+                          ? 'text-red-500 hover:text-red-600 hover:bg-red-50'
+                          : 'text-green-500 hover:text-green-600 hover:bg-green-50'
+                      }`}
+                      title={category.isTemporarilyDisabled ? 'Включить категорию' : 'Отключить категорию'}
+                    >
+                      {category.isTemporarilyDisabled ? (
+                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636" />
+                        </svg>
+                      ) : (
+                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                        </svg>
+                      )}
+                    </button>
+                    {/* Schedule button */}
+                    <button
+                      onClick={() => openScheduleModal(category)}
+                      className="p-2 text-gray-400 hover:text-purple-600 hover:bg-purple-50 rounded-lg transition-colors"
+                      title="Настроить расписание"
+                    >
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                      </svg>
+                    </button>
                     <button
                       onClick={() => openEditModal(category)}
                       className="p-2 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
@@ -181,9 +263,24 @@ export default function CategoriesPage() {
                 </div>
 
                 <h3 className="text-lg font-semibold text-gray-900 mb-1">{category.name}</h3>
-                <div className="flex items-center gap-4 text-sm text-gray-500">
+                <div className="flex items-center gap-4 text-sm text-gray-500 flex-wrap">
                   <span>Порядок: {category.sortOrder}</span>
                   <span>{category.productCount || 0} продуктов</span>
+                  {category.isTemporarilyDisabled && (
+                    <span className="px-2 py-0.5 bg-red-100 text-red-700 rounded-full text-xs font-medium">
+                      Временно отключена
+                    </span>
+                  )}
+                  {(category.availableFrom || category.availableTo) && (
+                    <span className="px-2 py-0.5 bg-purple-100 text-purple-700 rounded-full text-xs font-medium">
+                      {formatTime(category.availableFrom) || '00:00'} - {formatTime(category.availableTo) || '23:59'}
+                    </span>
+                  )}
+                  {!category.isCurrentlyAvailable && !category.isTemporarilyDisabled && (
+                    <span className="px-2 py-0.5 bg-orange-100 text-orange-700 rounded-full text-xs font-medium">
+                      Вне рабочего времени
+                    </span>
+                  )}
                 </div>
               </div>
 
@@ -301,6 +398,59 @@ export default function CategoriesPage() {
             </Button>
           </div>
         </form>
+      </Modal>
+
+      {/* Schedule Modal */}
+      <Modal
+        isOpen={isScheduleModalOpen}
+        onClose={() => setIsScheduleModalOpen(false)}
+        title={`Расписание: ${scheduleCategory?.name || ''}`}
+        size="sm"
+      >
+        <div className="space-y-4">
+          <p className="text-sm text-gray-500">
+            Укажите время, когда категория будет доступна. Например, для категории "Завтрак" установите 07:00 - 11:00.
+          </p>
+
+          <Input
+            id="availableFrom"
+            label="Доступна с"
+            type="time"
+            value={scheduleData.availableFrom}
+            onChange={(e) => setScheduleData({ ...scheduleData, availableFrom: e.target.value })}
+          />
+
+          <Input
+            id="availableTo"
+            label="Доступна до"
+            type="time"
+            value={scheduleData.availableTo}
+            onChange={(e) => setScheduleData({ ...scheduleData, availableTo: e.target.value })}
+          />
+
+          <div className="p-3 bg-blue-50 rounded-lg">
+            <p className="text-sm text-blue-700">
+              Если оба поля пустые - категория доступна всегда.
+              Если заполнить только одно поле - будет использовано ограничение с одной стороны.
+            </p>
+          </div>
+
+          <div className="flex gap-3 pt-4">
+            <Button
+              type="button"
+              variant="secondary"
+              onClick={() => {
+                setScheduleData({ availableFrom: '', availableTo: '' });
+              }}
+              className="flex-1"
+            >
+              Сбросить
+            </Button>
+            <Button onClick={handleSaveSchedule} isLoading={saving} className="flex-1">
+              Сохранить
+            </Button>
+          </div>
+        </div>
       </Modal>
     </AdminLayout>
   );

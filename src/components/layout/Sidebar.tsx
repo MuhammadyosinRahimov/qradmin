@@ -4,7 +4,14 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useAuthStore } from '@/stores/authStore';
 
-const menuItems = [
+interface MenuItem {
+  href: string;
+  label: string;
+  icon: React.ReactNode;
+  superAdminOnly?: boolean;
+}
+
+const menuItems: MenuItem[] = [
   {
     href: '/dashboard',
     label: 'Панель управления',
@@ -26,6 +33,7 @@ const menuItems = [
   {
     href: '/restaurants',
     label: 'Рестораны',
+    superAdminOnly: true,
     icon: (
       <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
@@ -81,20 +89,44 @@ const menuItems = [
 
 export default function Sidebar() {
   const pathname = usePathname();
-  const { admin, logout } = useAuthStore();
+  const { admin, logout, isSuperAdmin } = useAuthStore();
+
+  const isSuper = isSuperAdmin();
+
+  // Filter menu items based on role
+  const filteredMenuItems = menuItems.filter(item => {
+    if (item.superAdminOnly && !isSuper) {
+      return false;
+    }
+    return true;
+  });
 
   return (
     <aside className="fixed left-0 top-0 h-screen w-64 bg-white border-r border-gray-200 flex flex-col">
       {/* Logo */}
       <div className="h-16 flex items-center px-6 border-b border-gray-200">
         <h1 className="text-xl font-bold text-blue-600">QR Меню</h1>
-        <span className="ml-2 text-xs bg-blue-100 text-blue-600 px-2 py-0.5 rounded">Админ</span>
+        <span className={`ml-2 text-xs px-2 py-0.5 rounded ${
+          isSuper
+            ? 'bg-purple-100 text-purple-600'
+            : 'bg-green-100 text-green-600'
+        }`}>
+          {isSuper ? 'Супер' : 'Ресторан'}
+        </span>
       </div>
+
+      {/* Restaurant name for restaurant admin */}
+      {!isSuper && admin?.restaurantName && (
+        <div className="px-4 py-3 bg-green-50 border-b border-green-100">
+          <p className="text-xs text-green-600 font-medium">Ресторан</p>
+          <p className="text-sm font-semibold text-green-800 truncate">{admin.restaurantName}</p>
+        </div>
+      )}
 
       {/* Navigation */}
       <nav className="flex-1 px-3 py-4 overflow-y-auto">
         <ul className="space-y-1">
-          {menuItems.map((item) => {
+          {filteredMenuItems.map((item) => {
             const isActive = pathname === item.href || pathname.startsWith(item.href + '/');
             return (
               <li key={item.href}>
@@ -118,8 +150,10 @@ export default function Sidebar() {
       {/* User section */}
       <div className="p-4 border-t border-gray-200">
         <div className="flex items-center gap-3 mb-3">
-          <div className="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center">
-            <span className="text-blue-600 font-medium">
+          <div className={`w-10 h-10 rounded-full flex items-center justify-center ${
+            isSuper ? 'bg-purple-100' : 'bg-green-100'
+          }`}>
+            <span className={`font-medium ${isSuper ? 'text-purple-600' : 'text-green-600'}`}>
               {admin?.name?.[0]?.toUpperCase() || 'A'}
             </span>
           </div>
