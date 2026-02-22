@@ -7,14 +7,16 @@ import Input from '@/components/ui/Input';
 import Select from '@/components/ui/Select';
 import Modal from '@/components/ui/Modal';
 import ImageUpload from '@/components/ui/ImageUpload';
-import { getProducts, getCategories, createProduct, updateProduct, deleteProduct, toggleProduct, uploadProductImage } from '@/lib/api';
-import { Product, Category } from '@/types';
+import { getProducts, getCategories, getMenus, createProduct, updateProduct, deleteProduct, toggleProduct, uploadProductImage } from '@/lib/api';
+import { Product, Category, Menu } from '@/types';
 
 export default function ProductsPage() {
   const [products, setProducts] = useState<Product[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
+  const [menus, setMenus] = useState<Menu[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedCategory, setSelectedCategory] = useState<string>('');
+  const [selectedMenu, setSelectedMenu] = useState<string>('');
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
   const [formData, setFormData] = useState({
@@ -22,6 +24,7 @@ export default function ProductsPage() {
     description: '',
     basePrice: 0,
     categoryId: '',
+    menuId: '',
     imageUrl: '',
     calories: 0,
     prepTimeMinutes: 15,
@@ -31,11 +34,12 @@ export default function ProductsPage() {
 
   useEffect(() => {
     fetchCategories();
+    fetchMenus();
   }, []);
 
   useEffect(() => {
     fetchProducts();
-  }, [selectedCategory]);
+  }, [selectedCategory, selectedMenu]);
 
   const fetchCategories = async () => {
     try {
@@ -46,10 +50,22 @@ export default function ProductsPage() {
     }
   };
 
+  const fetchMenus = async () => {
+    try {
+      const response = await getMenus();
+      setMenus(response.data);
+    } catch (error) {
+      console.error('Error fetching menus:', error);
+    }
+  };
+
   const fetchProducts = async () => {
     setLoading(true);
     try {
-      const response = await getProducts(selectedCategory || undefined);
+      const response = await getProducts(
+        selectedCategory || undefined,
+        selectedMenu || undefined
+      );
       setProducts(response.data);
     } catch (error) {
       console.error('Error fetching products:', error);
@@ -66,6 +82,7 @@ export default function ProductsPage() {
       description: '',
       basePrice: 0,
       categoryId: categories[0]?.id || '',
+      menuId: menus[0]?.id || '',
       imageUrl: '',
       calories: 0,
       prepTimeMinutes: 15,
@@ -81,6 +98,7 @@ export default function ProductsPage() {
       description: product.description || '',
       basePrice: product.basePrice,
       categoryId: product.categoryId,
+      menuId: product.menuId || '',
       imageUrl: product.imageUrl || '',
       calories: product.calories || 0,
       prepTimeMinutes: product.prepTimeMinutes || 15,
@@ -95,14 +113,19 @@ export default function ProductsPage() {
     try {
       let productId: string;
 
+      const submitData = {
+        ...formData,
+        menuId: formData.menuId || null,
+      };
+
       if (editingProduct) {
         await updateProduct(editingProduct.id, {
-          ...formData,
+          ...submitData,
           isAvailable: editingProduct.isAvailable,
         });
         productId = editingProduct.id;
       } else {
-        const response = await createProduct(formData);
+        const response = await createProduct(submitData);
         productId = response.data.id;
       }
 
@@ -158,8 +181,8 @@ export default function ProductsPage() {
         </Button>
       </div>
 
-      {/* Filter */}
-      <div className="mb-6">
+      {/* Filters */}
+      <div className="mb-6 flex gap-4 flex-wrap">
         <Select
           id="category-filter"
           label="Фильтр по категории"
@@ -168,6 +191,17 @@ export default function ProductsPage() {
           options={[
             { value: '', label: 'Все категории' },
             ...categories.map((c) => ({ value: c.id, label: c.name })),
+          ]}
+          className="max-w-xs"
+        />
+        <Select
+          id="menu-filter"
+          label="Фильтр по меню"
+          value={selectedMenu}
+          onChange={(e) => setSelectedMenu(e.target.value)}
+          options={[
+            { value: '', label: 'Все меню' },
+            ...menus.map((m) => ({ value: m.id, label: m.name })),
           ]}
           className="max-w-xs"
         />
@@ -231,6 +265,9 @@ export default function ProductsPage() {
                   <div>
                     <h3 className="font-semibold text-gray-900">{product.name}</h3>
                     <span className="text-sm text-gray-500">{product.categoryName}</span>
+                    {product.menuName && (
+                      <span className="block text-xs text-blue-500">{product.menuName}</span>
+                    )}
                   </div>
                   <div className="flex gap-1">
                     <button
@@ -351,6 +388,17 @@ export default function ProductsPage() {
               required
             />
           </div>
+
+          <Select
+            id="menuId"
+            label="Меню"
+            value={formData.menuId}
+            onChange={(e) => setFormData({ ...formData, menuId: e.target.value })}
+            options={[
+              { value: '', label: 'Не указано' },
+              ...menus.map((m) => ({ value: m.id, label: m.name })),
+            ]}
+          />
 
           <ImageUpload
             value={formData.imageUrl}

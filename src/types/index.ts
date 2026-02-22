@@ -103,6 +103,8 @@ export interface Product {
   isAvailable: boolean;
   categoryId: string;
   categoryName: string;
+  menuId?: string;
+  menuName?: string;
   sizes: ProductSize[];
   addons: ProductAddon[];
 }

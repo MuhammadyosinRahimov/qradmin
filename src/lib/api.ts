@@ -85,8 +85,8 @@ export const updateCategory = (id: string, data: any) => api.put(`/admin/categor
 export const deleteCategory = (id: string) => api.delete(`/admin/categories/${id}`);
 
 // Products
-export const getProducts = (categoryId?: string) =>
-  api.get('/admin/products', { params: { categoryId } });
+export const getProducts = (categoryId?: string, menuId?: string) =>
+  api.get('/admin/products', { params: { categoryId, menuId } });
 export const getProduct = (id: string) => api.get(`/admin/products/${id}`);
 export const createProduct = (data: any) => api.post('/admin/products', data);
 export const updateProduct = (id: string, data: any) => api.put(`/admin/products/${id}`, data);
