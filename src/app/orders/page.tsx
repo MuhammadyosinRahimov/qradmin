@@ -49,41 +49,45 @@ export default function OrdersPage() {
   }, []);
 
   // Play notification sound using Web Audio API
-  const playNotificationSound = useCallback(() => {
+  const playNotificationSound = useCallback(async () => {
     try {
+      // Create AudioContext if needed
       if (!audioContextRef.current) {
         audioContextRef.current = new (window.AudioContext || (window as any).webkitAudioContext)();
       }
       const ctx = audioContextRef.current;
 
-      // Resume if suspended
+      // Resume if suspended (required by browsers)
       if (ctx.state === 'suspended') {
-        ctx.resume();
+        await ctx.resume();
       }
 
+      const now = ctx.currentTime;
+
       // Play three ascending beeps for attention
-      const playBeep = (freq: number, delay: number) => {
-        setTimeout(() => {
-          const oscillator = ctx.createOscillator();
-          const gainNode = ctx.createGain();
+      const playBeep = (freq: number, startTime: number) => {
+        const oscillator = ctx.createOscillator();
+        const gainNode = ctx.createGain();
 
-          oscillator.connect(gainNode);
-          gainNode.connect(ctx.destination);
+        oscillator.connect(gainNode);
+        gainNode.connect(ctx.destination);
 
-          oscillator.frequency.value = freq;
-          oscillator.type = 'sine';
+        oscillator.frequency.value = freq;
+        oscillator.type = 'sine';
 
-          gainNode.gain.setValueAtTime(0.4, ctx.currentTime);
-          gainNode.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.3);
+        // Start at 0 volume, ramp up quickly, then fade out
+        gainNode.gain.setValueAtTime(0, startTime);
+        gainNode.gain.linearRampToValueAtTime(0.5, startTime + 0.02);
+        gainNode.gain.linearRampToValueAtTime(0, startTime + 0.25);
 
-          oscillator.start(ctx.currentTime);
-          oscillator.stop(ctx.currentTime + 0.3);
-        }, delay);
+        oscillator.start(startTime);
+        oscillator.stop(startTime + 0.25);
       };
 
-      playBeep(800, 0);
-      playBeep(1000, 150);
-      playBeep(1200, 300);
+      // Three ascending beeps
+      playBeep(600, now);
+      playBeep(800, now + 0.2);
+      playBeep(1000, now + 0.4);
 
       // Also show browser notification if permitted
       if ('Notification' in window && Notification.permission === 'granted') {
@@ -93,7 +97,7 @@ export default function OrdersPage() {
         });
       }
     } catch (e) {
-      console.log('Audio not supported:', e);
+      console.error('Audio error:', e);
     }
   }, []);
 
@@ -220,6 +224,7 @@ export default function OrdersPage() {
           <button
             onClick={() => {
               initAudio();
+              playNotificationSound();
               if ('Notification' in window && Notification.permission === 'default') {
                 Notification.requestPermission();
               }
@@ -237,7 +242,7 @@ export default function OrdersPage() {
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5.586 15H4a1 1 0 01-1-1v-4a1 1 0 011-1h1.586l4.707-4.707C10.923 3.663 12 4.109 12 5v14c0 .891-1.077 1.337-1.707.707L5.586 15z M17 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2" />
               )}
             </svg>
-            {soundEnabled ? 'Звук вкл' : 'Включить звук'}
+            {soundEnabled ? 'Тест звука' : 'Включить звук'}
           </button>
           <Button onClick={fetchOrders} variant="secondary">
             <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
