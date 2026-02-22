@@ -35,6 +35,18 @@ export default function OrdersPage() {
   const [newOrdersCount, setNewOrdersCount] = useState(0);
   const connectionRef = useRef<signalR.HubConnection | null>(null);
   const audioContextRef = useRef<AudioContext | null>(null);
+  const [soundEnabled, setSoundEnabled] = useState(false);
+
+  // Initialize AudioContext on user interaction
+  const initAudio = useCallback(() => {
+    if (!audioContextRef.current) {
+      audioContextRef.current = new (window.AudioContext || (window as any).webkitAudioContext)();
+    }
+    if (audioContextRef.current.state === 'suspended') {
+      audioContextRef.current.resume();
+    }
+    setSoundEnabled(true);
+  }, []);
 
   // Play notification sound using Web Audio API
   const playNotificationSound = useCallback(() => {
@@ -44,37 +56,44 @@ export default function OrdersPage() {
       }
       const ctx = audioContextRef.current;
 
-      // Create a simple beep sound
-      const oscillator = ctx.createOscillator();
-      const gainNode = ctx.createGain();
+      // Resume if suspended
+      if (ctx.state === 'suspended') {
+        ctx.resume();
+      }
 
-      oscillator.connect(gainNode);
-      gainNode.connect(ctx.destination);
+      // Play three ascending beeps for attention
+      const playBeep = (freq: number, delay: number) => {
+        setTimeout(() => {
+          const oscillator = ctx.createOscillator();
+          const gainNode = ctx.createGain();
 
-      oscillator.frequency.value = 800;
-      oscillator.type = 'sine';
+          oscillator.connect(gainNode);
+          gainNode.connect(ctx.destination);
 
-      gainNode.gain.setValueAtTime(0.3, ctx.currentTime);
-      gainNode.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.5);
+          oscillator.frequency.value = freq;
+          oscillator.type = 'sine';
 
-      oscillator.start(ctx.currentTime);
-      oscillator.stop(ctx.currentTime + 0.5);
+          gainNode.gain.setValueAtTime(0.4, ctx.currentTime);
+          gainNode.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.3);
 
-      // Play second beep
-      setTimeout(() => {
-        const osc2 = ctx.createOscillator();
-        const gain2 = ctx.createGain();
-        osc2.connect(gain2);
-        gain2.connect(ctx.destination);
-        osc2.frequency.value = 1000;
-        osc2.type = 'sine';
-        gain2.gain.setValueAtTime(0.3, ctx.currentTime);
-        gain2.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.5);
-        osc2.start(ctx.currentTime);
-        osc2.stop(ctx.currentTime + 0.5);
-      }, 200);
+          oscillator.start(ctx.currentTime);
+          oscillator.stop(ctx.currentTime + 0.3);
+        }, delay);
+      };
+
+      playBeep(800, 0);
+      playBeep(1000, 150);
+      playBeep(1200, 300);
+
+      // Also show browser notification if permitted
+      if ('Notification' in window && Notification.permission === 'granted') {
+        new Notification('Новый заказ!', {
+          body: 'Поступил новый заказ',
+          icon: '/favicon.ico',
+        });
+      }
     } catch (e) {
-      console.log('Audio not supported');
+      console.log('Audio not supported:', e);
     }
   }, []);
 
@@ -179,7 +198,7 @@ export default function OrdersPage() {
   };
 
   const filteredOrders = orders.filter(
-    (order) => filter === 'all' || order.status === filter
+    (order) => filter === 'all' || Number(order.status) === Number(filter)
   );
 
   return (
@@ -197,12 +216,36 @@ export default function OrdersPage() {
           </h1>
           <p className="text-gray-500 mt-1">Управление заказами в реальном времени</p>
         </div>
-        <Button onClick={fetchOrders} variant="secondary">
-          <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-          </svg>
-          Обновить
-        </Button>
+        <div className="flex gap-2">
+          <button
+            onClick={() => {
+              initAudio();
+              if ('Notification' in window && Notification.permission === 'default') {
+                Notification.requestPermission();
+              }
+            }}
+            className={`px-4 py-2 rounded-lg font-medium transition-colors flex items-center gap-2 ${
+              soundEnabled
+                ? 'bg-green-100 text-green-700 border border-green-300'
+                : 'bg-yellow-100 text-yellow-700 border border-yellow-300'
+            }`}
+          >
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              {soundEnabled ? (
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.536 8.464a5 5 0 010 7.072m2.828-9.9a9 9 0 010 12.728M5.586 15H4a1 1 0 01-1-1v-4a1 1 0 011-1h1.586l4.707-4.707C10.923 3.663 12 4.109 12 5v14c0 .891-1.077 1.337-1.707.707L5.586 15z" />
+              ) : (
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5.586 15H4a1 1 0 01-1-1v-4a1 1 0 011-1h1.586l4.707-4.707C10.923 3.663 12 4.109 12 5v14c0 .891-1.077 1.337-1.707.707L5.586 15z M17 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2" />
+              )}
+            </svg>
+            {soundEnabled ? 'Звук вкл' : 'Включить звук'}
+          </button>
+          <Button onClick={fetchOrders} variant="secondary">
+            <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+            </svg>
+            Обновить
+          </Button>
+        </div>
       </div>
 
       {/* Filter tabs */}
