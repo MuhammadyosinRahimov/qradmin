@@ -6,8 +6,9 @@ import AdminLayout from '@/components/layout/AdminLayout';
 import Button from '@/components/ui/Button';
 import Modal from '@/components/ui/Modal';
 import Input from '@/components/ui/Input';
-import { getOrders, updateOrderStatus, getSignalRUrl, cancelOrderItem, confirmPendingItems, getRestaurantStatus, toggleRestaurantOrders } from '@/lib/api';
-import { Order, OrderStatus, OrderItemStatus, OrderItemStatusNames } from '@/types';
+import { getOrders, updateOrderStatus, getSignalRUrl, cancelOrderItem, confirmPendingItems, getRestaurantStatus, toggleRestaurantOrders, getRestaurants } from '@/lib/api';
+import { Order, OrderStatus, OrderItemStatus, OrderItemStatusNames, Restaurant } from '@/types';
+import Select from '@/components/ui/Select';
 import { useAuthStore } from '@/stores/authStore';
 
 const statusLabels: Record<OrderStatus, string> = {
@@ -47,6 +48,11 @@ export default function OrdersPage() {
   const [acceptingOrders, setAcceptingOrders] = useState(true);
   const [pauseMessage, setPauseMessage] = useState('');
   const [togglingPause, setTogglingPause] = useState(false);
+
+  // Restaurant selection for super admin
+  const [restaurants, setRestaurants] = useState<Restaurant[]>([]);
+  const [selectedRestaurantId, setSelectedRestaurantId] = useState<string>('');
+  const isSuperAdmin = admin?.role === 'Admin';
 
   // Initialize AudioContext on user interaction
   const initAudio = useCallback(() => {
@@ -112,9 +118,33 @@ export default function OrdersPage() {
     }
   }, []);
 
+  // Fetch restaurants for super admin
+  const fetchRestaurants = useCallback(async () => {
+    if (isSuperAdmin) {
+      try {
+        const response = await getRestaurants();
+        setRestaurants(response.data);
+        // Auto-select first restaurant if none selected
+        if (response.data.length > 0 && !selectedRestaurantId) {
+          setSelectedRestaurantId(response.data[0].id);
+        }
+      } catch (error) {
+        console.error('Error fetching restaurants:', error);
+      }
+    }
+  }, [isSuperAdmin, selectedRestaurantId]);
+
+  // Get the current restaurant ID (either from selection or from admin's restaurant)
+  const getCurrentRestaurantId = useCallback(() => {
+    if (isSuperAdmin) {
+      return selectedRestaurantId;
+    }
+    return getRestaurantId() || admin?.restaurantId;
+  }, [isSuperAdmin, selectedRestaurantId, getRestaurantId, admin]);
+
   // Fetch restaurant status
   const fetchRestaurantStatus = useCallback(async () => {
-    const restaurantId = getRestaurantId() || admin?.restaurantId;
+    const restaurantId = getCurrentRestaurantId();
     if (restaurantId) {
       try {
         const status = await getRestaurantStatus(restaurantId);
@@ -124,12 +154,15 @@ export default function OrdersPage() {
         console.error('Error fetching restaurant status:', error);
       }
     }
-  }, [getRestaurantId, admin]);
+  }, [getCurrentRestaurantId]);
 
   // Toggle restaurant orders
   const handleTogglePause = async () => {
-    const restaurantId = getRestaurantId() || admin?.restaurantId;
-    if (!restaurantId) return;
+    const restaurantId = getCurrentRestaurantId();
+    if (!restaurantId) {
+      alert('Выберите ресторан');
+      return;
+    }
 
     setTogglingPause(true);
     try {
@@ -147,7 +180,7 @@ export default function OrdersPage() {
   // Fetch orders
   const fetchOrders = useCallback(async () => {
     try {
-      const restaurantId = getRestaurantId();
+      const restaurantId = getCurrentRestaurantId();
       const response = await getOrders(filter === 'all' ? undefined : filter, restaurantId || undefined);
       setOrders(response.data);
     } catch (error) {
@@ -155,12 +188,17 @@ export default function OrdersPage() {
     } finally {
       setLoading(false);
     }
-  }, [filter, getRestaurantId]);
+  }, [filter, getCurrentRestaurantId]);
 
-  // Fetch restaurant status on mount
+  // Fetch restaurants for super admin on mount
+  useEffect(() => {
+    fetchRestaurants();
+  }, [fetchRestaurants]);
+
+  // Fetch restaurant status on mount and when selected restaurant changes
   useEffect(() => {
     fetchRestaurantStatus();
-  }, [fetchRestaurantStatus]);
+  }, [fetchRestaurantStatus, selectedRestaurantId]);
 
   // Cancel item handler
   const handleCancelItem = async (orderId: string, itemId: string) => {
@@ -324,11 +362,24 @@ export default function OrdersPage() {
           </h1>
           <p className="text-gray-500 mt-1">Управление заказами в реальном времени</p>
         </div>
-        <div className="flex gap-2">
+        <div className="flex gap-2 items-center">
+          {/* Restaurant selector for super admin */}
+          {isSuperAdmin && restaurants.length > 0 && (
+            <select
+              value={selectedRestaurantId}
+              onChange={(e) => setSelectedRestaurantId(e.target.value)}
+              className="px-3 py-2 rounded-lg border border-gray-300 bg-white text-sm font-medium text-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
+            >
+              {restaurants.map((r) => (
+                <option key={r.id} value={r.id}>{r.name}</option>
+              ))}
+            </select>
+          )}
           {/* Pause/Resume button */}
           <button
             onClick={() => setIsPauseModalOpen(true)}
-            className={`px-4 py-2 rounded-lg font-medium transition-colors flex items-center gap-2 ${
+            disabled={isSuperAdmin && !selectedRestaurantId}
+            className={`px-4 py-2 rounded-lg font-medium transition-colors flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed ${
               acceptingOrders
                 ? 'bg-red-100 text-red-700 border border-red-300 hover:bg-red-200'
                 : 'bg-green-100 text-green-700 border border-green-300 hover:bg-green-200'
