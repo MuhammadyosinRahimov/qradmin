@@ -33,11 +33,14 @@ export const useAuthStore = create<AuthState>()(
           const response = await adminLogin(email, password);
           const data: AuthResponse = response.data;
 
+          console.log('API Response:', data);
+          console.log('Role from API:', data.role);
+
           const admin: Admin = {
             id: data.adminId,
             email: data.email,
             name: data.name,
-            role: data.role,
+            role: data.role || 'Admin',
             restaurantId: data.restaurantId,
             restaurantName: data.restaurantName,
           };

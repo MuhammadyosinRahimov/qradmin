@@ -16,6 +16,7 @@ export default function LoginPage() {
     if (isAuthenticated) {
       router.push('/dashboard');
     }
+    
   }, [isAuthenticated, router]);
 
   const handleSubmit = async (e: React.FormEvent) => {

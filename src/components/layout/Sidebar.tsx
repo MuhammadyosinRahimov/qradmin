@@ -89,9 +89,10 @@ const menuItems: MenuItem[] = [
 
 export default function Sidebar() {
   const pathname = usePathname();
-  const { admin, logout, isSuperAdmin } = useAuthStore();
+  const { admin, logout } = useAuthStore();
 
-  const isSuper = isSuperAdmin();
+  // Check role directly to avoid hydration issues
+  const isSuper = admin?.role === 'Admin';
 
   // Filter menu items based on role
   const filteredMenuItems = menuItems.filter(item => {
