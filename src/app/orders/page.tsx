@@ -110,9 +110,9 @@ export default function OrdersPage() {
       setOrders((prev) =>
         prev.map((o) => (o.id === updatedOrder.id ? updatedOrder : o))
       );
-      if (selectedOrder?.id === updatedOrder.id) {
-        setSelectedOrder(updatedOrder);
-      }
+      setSelectedOrder((prev) =>
+        prev?.id === updatedOrder.id ? updatedOrder : prev
+      );
     });
 
     connection
@@ -128,7 +128,7 @@ export default function OrdersPage() {
     return () => {
       connection.stop();
     };
-  }, [playNotificationSound, selectedOrder?.id]);
+  }, [playNotificationSound]);
 
   // Fetch orders on mount and filter change
   useEffect(() => {

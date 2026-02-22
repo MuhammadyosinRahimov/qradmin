@@ -27,7 +27,11 @@ api.interceptors.response.use(
     if (error.response?.status === 401) {
       if (typeof window !== 'undefined') {
         localStorage.removeItem('admin_token');
-        window.location.href = '/login';
+        localStorage.removeItem('admin-auth');
+        // Use replace to avoid redirect loop
+        if (!window.location.pathname.includes('/login')) {
+          window.location.replace('/login');
+        }
       }
     }
     return Promise.reject(error);
