@@ -21,6 +21,9 @@ export default function RestaurantsPage() {
     adminEmail: '',
     adminPassword: '',
     adminName: '',
+    dcMerchantId: '',
+    dcSecretKey: '',
+    dcArticul: '',
   });
   const [saving, setSaving] = useState(false);
 
@@ -41,7 +44,7 @@ export default function RestaurantsPage() {
 
   const openCreateModal = () => {
     setEditingRestaurant(null);
-    setFormData({ name: '', description: '', address: '', phone: '', adminEmail: '', adminPassword: '', adminName: '' });
+    setFormData({ name: '', description: '', address: '', phone: '', adminEmail: '', adminPassword: '', adminName: '', dcMerchantId: '', dcSecretKey: '', dcArticul: '' });
     setIsModalOpen(true);
   };
 
@@ -55,6 +58,9 @@ export default function RestaurantsPage() {
       adminEmail: '',
       adminPassword: '',
       adminName: '',
+      dcMerchantId: restaurant.dcMerchantId || '',
+      dcSecretKey: restaurant.dcSecretKey || '',
+      dcArticul: restaurant.dcArticul || '',
     });
     setIsModalOpen(true);
   };
@@ -71,6 +77,9 @@ export default function RestaurantsPage() {
           address: formData.address,
           phone: formData.phone,
           isActive: editingRestaurant.isActive,
+          dcMerchantId: formData.dcMerchantId || undefined,
+          dcSecretKey: formData.dcSecretKey || undefined,
+          dcArticul: formData.dcArticul || undefined,
         });
       } else {
         await createRestaurant({
@@ -143,15 +152,22 @@ export default function RestaurantsPage() {
               <div className="flex items-start justify-between mb-4">
                 <div>
                   <h3 className="text-lg font-semibold text-gray-900">{restaurant.name}</h3>
-                  <span
-                    className={`inline-flex items-center px-2 py-0.5 text-xs font-medium rounded-full ${
-                      restaurant.isActive
-                        ? 'bg-green-100 text-green-700'
-                        : 'bg-gray-100 text-gray-600'
-                    }`}
-                  >
-                    {restaurant.isActive ? 'Активен' : 'Неактивен'}
-                  </span>
+                  <div className="flex flex-wrap gap-1">
+                    <span
+                      className={`inline-flex items-center px-2 py-0.5 text-xs font-medium rounded-full ${
+                        restaurant.isActive
+                          ? 'bg-green-100 text-green-700'
+                          : 'bg-gray-100 text-gray-600'
+                      }`}
+                    >
+                      {restaurant.isActive ? 'Активен' : 'Неактивен'}
+                    </span>
+                    {restaurant.onlinePaymentAvailable && (
+                      <span className="inline-flex items-center px-2 py-0.5 text-xs font-medium rounded-full bg-blue-100 text-blue-700">
+                        Онлайн-оплата
+                      </span>
+                    )}
+                  </div>
                 </div>
                 <div className="flex gap-2">
                   <button
@@ -277,6 +293,43 @@ export default function RestaurantsPage() {
                 onChange={(e) => setFormData({ ...formData, adminName: e.target.value })}
                 placeholder="Имя администратора"
               />
+            </div>
+          )}
+
+          {/* DC Payment settings - only show when editing */}
+          {editingRestaurant && (
+            <div className="border-t border-gray-200 pt-4 mt-4 space-y-4">
+              <h3 className="text-sm font-medium text-gray-700">Настройки онлайн-оплаты DC Bank</h3>
+              <Input
+                id="dcMerchantId"
+                label="Merchant ID"
+                value={formData.dcMerchantId}
+                onChange={(e) => setFormData({ ...formData, dcMerchantId: e.target.value })}
+                placeholder="Код мерчанта DC"
+              />
+              <Input
+                id="dcSecretKey"
+                label="Secret Key"
+                type="password"
+                value={formData.dcSecretKey}
+                onChange={(e) => setFormData({ ...formData, dcSecretKey: e.target.value })}
+                placeholder="Секретный ключ DC"
+              />
+              <Input
+                id="dcArticul"
+                label="Артикул (необязательно)"
+                value={formData.dcArticul}
+                onChange={(e) => setFormData({ ...formData, dcArticul: e.target.value })}
+                placeholder="30"
+              />
+              {editingRestaurant.onlinePaymentAvailable && (
+                <div className="flex items-center gap-2 p-3 bg-green-50 rounded-lg">
+                  <svg className="w-5 h-5 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                  </svg>
+                  <span className="text-sm text-green-700">Онлайн-оплата активна</span>
+                </div>
+              )}
             </div>
           )}
 

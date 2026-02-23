@@ -11,6 +11,11 @@ export interface Restaurant {
   createdAt: string;
   menuCount: number;
   tableCount: number;
+  // DC Payment fields
+  dcMerchantId?: string;
+  dcSecretKey?: string;
+  dcArticul?: string;
+  onlinePaymentAvailable: boolean;
 }
 
 export interface Menu {
