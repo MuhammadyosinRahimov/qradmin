@@ -148,21 +148,15 @@ export interface ProductAddon {
 export enum OrderStatus {
   Pending = 0,
   Confirmed = 1,
-  Preparing = 2,
-  Ready = 3,
-  Delivered = 4,
-  Completed = 5,
-  Cancelled = 6,
+  Completed = 2,
+  Cancelled = 3,
 }
 
 export const OrderStatusNames: Record<number, string> = {
   0: 'Ожидает',
   1: 'Подтверждён',
-  2: 'Готовится',
-  3: 'Готов',
-  4: 'Доставлен',
-  5: 'Завершён',
-  6: 'Отменён',
+  2: 'Завершён',
+  3: 'Отменён',
 };
 
 export enum OrderItemStatus {

@@ -18,6 +18,9 @@ export default function RestaurantsPage() {
     description: '',
     address: '',
     phone: '',
+    adminEmail: '',
+    adminPassword: '',
+    adminName: '',
   });
   const [saving, setSaving] = useState(false);
 
@@ -38,7 +41,7 @@ export default function RestaurantsPage() {
 
   const openCreateModal = () => {
     setEditingRestaurant(null);
-    setFormData({ name: '', description: '', address: '', phone: '' });
+    setFormData({ name: '', description: '', address: '', phone: '', adminEmail: '', adminPassword: '', adminName: '' });
     setIsModalOpen(true);
   };
 
@@ -49,6 +52,9 @@ export default function RestaurantsPage() {
       description: restaurant.description || '',
       address: restaurant.address || '',
       phone: restaurant.phone || '',
+      adminEmail: '',
+      adminPassword: '',
+      adminName: '',
     });
     setIsModalOpen(true);
   };
@@ -60,11 +66,22 @@ export default function RestaurantsPage() {
     try {
       if (editingRestaurant) {
         await updateRestaurant(editingRestaurant.id, {
-          ...formData,
+          name: formData.name,
+          description: formData.description,
+          address: formData.address,
+          phone: formData.phone,
           isActive: editingRestaurant.isActive,
         });
       } else {
-        await createRestaurant(formData);
+        await createRestaurant({
+          name: formData.name,
+          description: formData.description,
+          address: formData.address,
+          phone: formData.phone,
+          adminEmail: formData.adminEmail || undefined,
+          adminPassword: formData.adminPassword || undefined,
+          adminName: formData.adminName || undefined,
+        });
       }
       await fetchRestaurants();
       setIsModalOpen(false);
@@ -232,6 +249,36 @@ export default function RestaurantsPage() {
             onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
             placeholder="+7 999 123-45-67"
           />
+
+          {/* Admin fields - only show when creating */}
+          {!editingRestaurant && (
+            <div className="border-t border-gray-200 pt-4 mt-4 space-y-4">
+              <h3 className="text-sm font-medium text-gray-700">Администратор ресторана (необязательно)</h3>
+              <Input
+                id="adminEmail"
+                label="Email администратора"
+                type="email"
+                value={formData.adminEmail}
+                onChange={(e) => setFormData({ ...formData, adminEmail: e.target.value })}
+                placeholder="admin@restaurant.com"
+              />
+              <Input
+                id="adminPassword"
+                label="Пароль"
+                type="password"
+                value={formData.adminPassword}
+                onChange={(e) => setFormData({ ...formData, adminPassword: e.target.value })}
+                placeholder="Минимум 6 символов"
+              />
+              <Input
+                id="adminName"
+                label="Имя администратора"
+                value={formData.adminName}
+                onChange={(e) => setFormData({ ...formData, adminName: e.target.value })}
+                placeholder="Имя администратора"
+              />
+            </div>
+          )}
 
           <div className="flex gap-3 pt-4">
             <Button type="button" variant="secondary" onClick={() => setIsModalOpen(false)} className="flex-1">

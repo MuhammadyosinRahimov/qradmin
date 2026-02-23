@@ -14,9 +14,6 @@ import { useAuthStore } from '@/stores/authStore';
 const statusLabels: Record<OrderStatus, string> = {
   [OrderStatus.Pending]: 'Новый',
   [OrderStatus.Confirmed]: 'Подтверждён',
-  [OrderStatus.Preparing]: 'Готовится',
-  [OrderStatus.Ready]: 'Готов',
-  [OrderStatus.Delivered]: 'Доставлен',
   [OrderStatus.Completed]: 'Завершён',
   [OrderStatus.Cancelled]: 'Отменён',
 };
@@ -24,9 +21,6 @@ const statusLabels: Record<OrderStatus, string> = {
 const statusColors: Record<OrderStatus, string> = {
   [OrderStatus.Pending]: 'bg-yellow-100 text-yellow-800',
   [OrderStatus.Confirmed]: 'bg-blue-100 text-blue-800',
-  [OrderStatus.Preparing]: 'bg-orange-100 text-orange-800',
-  [OrderStatus.Ready]: 'bg-green-100 text-green-800',
-  [OrderStatus.Delivered]: 'bg-purple-100 text-purple-800',
   [OrderStatus.Completed]: 'bg-gray-100 text-gray-800',
   [OrderStatus.Cancelled]: 'bg-red-100 text-red-800',
 };
@@ -313,10 +307,7 @@ export default function OrdersPage() {
   const getNextStatus = (status: OrderStatus): OrderStatus | null => {
     const flow: Record<OrderStatus, OrderStatus | null> = {
       [OrderStatus.Pending]: OrderStatus.Confirmed,
-      [OrderStatus.Confirmed]: OrderStatus.Preparing,
-      [OrderStatus.Preparing]: OrderStatus.Ready,
-      [OrderStatus.Ready]: OrderStatus.Delivered,
-      [OrderStatus.Delivered]: OrderStatus.Completed,
+      [OrderStatus.Confirmed]: OrderStatus.Completed,
       [OrderStatus.Completed]: null,
       [OrderStatus.Cancelled]: null,
     };
