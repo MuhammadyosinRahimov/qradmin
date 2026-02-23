@@ -24,6 +24,9 @@ export default function RestaurantsPage() {
     dcMerchantId: '',
     dcSecretKey: '',
     dcArticul: '',
+    alifKey: '',
+    alifPassword: '',
+    alifGate: 'salom',
   });
   const [saving, setSaving] = useState(false);
 
@@ -44,7 +47,7 @@ export default function RestaurantsPage() {
 
   const openCreateModal = () => {
     setEditingRestaurant(null);
-    setFormData({ name: '', description: '', address: '', phone: '', adminEmail: '', adminPassword: '', adminName: '', dcMerchantId: '', dcSecretKey: '', dcArticul: '' });
+    setFormData({ name: '', description: '', address: '', phone: '', adminEmail: '', adminPassword: '', adminName: '', dcMerchantId: '', dcSecretKey: '', dcArticul: '', alifKey: '', alifPassword: '', alifGate: 'salom' });
     setIsModalOpen(true);
   };
 
@@ -61,6 +64,9 @@ export default function RestaurantsPage() {
       dcMerchantId: restaurant.dcMerchantId || '',
       dcSecretKey: restaurant.dcSecretKey || '',
       dcArticul: restaurant.dcArticul || '',
+      alifKey: restaurant.alifKey || '',
+      alifPassword: restaurant.alifPassword || '',
+      alifGate: restaurant.alifGate || 'salom',
     });
     setIsModalOpen(true);
   };
@@ -80,6 +86,9 @@ export default function RestaurantsPage() {
           dcMerchantId: formData.dcMerchantId || undefined,
           dcSecretKey: formData.dcSecretKey || undefined,
           dcArticul: formData.dcArticul || undefined,
+          alifKey: formData.alifKey || undefined,
+          alifPassword: formData.alifPassword || undefined,
+          alifGate: formData.alifGate || undefined,
         });
       } else {
         await createRestaurant({
@@ -296,41 +305,79 @@ export default function RestaurantsPage() {
             </div>
           )}
 
-          {/* DC Payment settings - only show when editing */}
+          {/* Payment settings - only show when editing */}
           {editingRestaurant && (
-            <div className="border-t border-gray-200 pt-4 mt-4 space-y-4">
-              <h3 className="text-sm font-medium text-gray-700">Настройки онлайн-оплаты DC Bank</h3>
-              <Input
-                id="dcMerchantId"
-                label="Merchant ID"
-                value={formData.dcMerchantId}
-                onChange={(e) => setFormData({ ...formData, dcMerchantId: e.target.value })}
-                placeholder="Код мерчанта DC"
-              />
-              <Input
-                id="dcSecretKey"
-                label="Secret Key"
-                type="password"
-                value={formData.dcSecretKey}
-                onChange={(e) => setFormData({ ...formData, dcSecretKey: e.target.value })}
-                placeholder="Секретный ключ DC"
-              />
-              <Input
-                id="dcArticul"
-                label="Артикул (необязательно)"
-                value={formData.dcArticul}
-                onChange={(e) => setFormData({ ...formData, dcArticul: e.target.value })}
-                placeholder="30"
-              />
+            <>
+              {/* Alif Bank settings */}
+              <div className="border-t border-gray-200 pt-4 mt-4 space-y-4">
+                <h3 className="text-sm font-medium text-gray-700">Настройки Alif Bank (приоритетный)</h3>
+                <Input
+                  id="alifKey"
+                  label="Alif Key"
+                  value={formData.alifKey}
+                  onChange={(e) => setFormData({ ...formData, alifKey: e.target.value })}
+                  placeholder="Merchant Key"
+                />
+                <Input
+                  id="alifPassword"
+                  label="Alif Password"
+                  type="password"
+                  value={formData.alifPassword}
+                  onChange={(e) => setFormData({ ...formData, alifPassword: e.target.value })}
+                  placeholder="Merchant Password"
+                />
+                <div>
+                  <label htmlFor="alifGate" className="block text-sm font-medium text-gray-700 mb-1">
+                    Gate
+                  </label>
+                  <select
+                    id="alifGate"
+                    value={formData.alifGate}
+                    onChange={(e) => setFormData({ ...formData, alifGate: e.target.value })}
+                    className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
+                  >
+                    <option value="salom">Salom</option>
+                    <option value="km">KoronaMir</option>
+                  </select>
+                </div>
+              </div>
+
+              {/* DC Bank settings */}
+              <div className="border-t border-gray-200 pt-4 mt-4 space-y-4">
+                <h3 className="text-sm font-medium text-gray-700">Настройки DC Bank (резервный)</h3>
+                <Input
+                  id="dcMerchantId"
+                  label="Merchant ID"
+                  value={formData.dcMerchantId}
+                  onChange={(e) => setFormData({ ...formData, dcMerchantId: e.target.value })}
+                  placeholder="Код мерчанта DC"
+                />
+                <Input
+                  id="dcSecretKey"
+                  label="Secret Key"
+                  type="password"
+                  value={formData.dcSecretKey}
+                  onChange={(e) => setFormData({ ...formData, dcSecretKey: e.target.value })}
+                  placeholder="Секретный ключ DC"
+                />
+                <Input
+                  id="dcArticul"
+                  label="Артикул (необязательно)"
+                  value={formData.dcArticul}
+                  onChange={(e) => setFormData({ ...formData, dcArticul: e.target.value })}
+                  placeholder="30"
+                />
+              </div>
+
               {editingRestaurant.onlinePaymentAvailable && (
-                <div className="flex items-center gap-2 p-3 bg-green-50 rounded-lg">
+                <div className="flex items-center gap-2 p-3 bg-green-50 rounded-lg mt-4">
                   <svg className="w-5 h-5 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
                   </svg>
                   <span className="text-sm text-green-700">Онлайн-оплата активна</span>
                 </div>
               )}
-            </div>
+            </>
           )}
 
           <div className="flex gap-3 pt-4">

@@ -15,6 +15,10 @@ export interface Restaurant {
   dcMerchantId?: string;
   dcSecretKey?: string;
   dcArticul?: string;
+  // Alif Bank fields
+  alifKey?: string;
+  alifPassword?: string;
+  alifGate?: string;
   onlinePaymentAvailable: boolean;
 }
 
