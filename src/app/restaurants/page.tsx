@@ -27,6 +27,7 @@ export default function RestaurantsPage() {
     alifKey: '',
     alifPassword: '',
     alifGate: 'salom',
+    paymentLink: '',
   });
   const [saving, setSaving] = useState(false);
 
@@ -47,7 +48,7 @@ export default function RestaurantsPage() {
 
   const openCreateModal = () => {
     setEditingRestaurant(null);
-    setFormData({ name: '', description: '', address: '', phone: '', adminEmail: '', adminPassword: '', adminName: '', dcMerchantId: '', dcSecretKey: '', dcArticul: '', alifKey: '', alifPassword: '', alifGate: 'salom' });
+    setFormData({ name: '', description: '', address: '', phone: '', adminEmail: '', adminPassword: '', adminName: '', dcMerchantId: '', dcSecretKey: '', dcArticul: '', alifKey: '', alifPassword: '', alifGate: 'salom', paymentLink: '' });
     setIsModalOpen(true);
   };
 
@@ -67,6 +68,7 @@ export default function RestaurantsPage() {
       alifKey: restaurant.alifKey || '',
       alifPassword: restaurant.alifPassword || '',
       alifGate: restaurant.alifGate || 'salom',
+      paymentLink: restaurant.paymentLink || '',
     });
     setIsModalOpen(true);
   };
@@ -89,6 +91,7 @@ export default function RestaurantsPage() {
           alifKey: formData.alifKey || undefined,
           alifPassword: formData.alifPassword || undefined,
           alifGate: formData.alifGate || undefined,
+          paymentLink: formData.paymentLink || undefined,
         });
       } else {
         await createRestaurant({
@@ -367,6 +370,21 @@ export default function RestaurantsPage() {
                   onChange={(e) => setFormData({ ...formData, dcArticul: e.target.value })}
                   placeholder="30"
                 />
+              </div>
+
+              {/* Payment Link settings */}
+              <div className="border-t border-gray-200 pt-4 mt-4 space-y-4">
+                <h3 className="text-sm font-medium text-gray-700">Ссылка для оплаты (ExpressPay, DC, Alif и др.)</h3>
+                <Input
+                  id="paymentLink"
+                  label="Платёжная ссылка"
+                  value={formData.paymentLink}
+                  onChange={(e) => setFormData({ ...formData, paymentLink: e.target.value })}
+                  placeholder="http://pay.expresspay.tj/?A=9762000087892609&s={amount}&c=&f1=133"
+                />
+                <p className="text-xs text-gray-500">
+                  Используйте <code className="bg-gray-100 px-1 rounded">{'{amount}'}</code> для автоподстановки суммы заказа
+                </p>
               </div>
 
               {editingRestaurant.onlinePaymentAvailable && (

@@ -20,6 +20,8 @@ export interface Restaurant {
   alifPassword?: string;
   alifGate?: string;
   onlinePaymentAvailable: boolean;
+  // Payment link
+  paymentLink?: string;
 }
 
 export interface Menu {
