@@ -254,6 +254,28 @@ export default function OrdersPage() {
       );
     });
 
+    connection.on('CashPaymentRequested', (data: {
+      orderId: string;
+      tableNumber: number;
+      tableName: string;
+      amount: number;
+      requestedAt: string;
+    }) => {
+      // Play notification sound
+      playNotificationSound();
+
+      // Show browser notification
+      if ('Notification' in window && Notification.permission === 'granted') {
+        new Notification('Запрос оплаты наличными', {
+          body: `${data.tableName}: ${data.amount} TJS`,
+          icon: '/favicon.ico',
+        });
+      }
+
+      // Refresh orders list
+      fetchOrders();
+    });
+
     connection
       .start()
       .then(() => {
