@@ -241,6 +241,8 @@ export interface SessionOrder {
   total: number;              // Subtotal + ServiceFeeShare
   isPaid: boolean;
   paidAt?: string;            // Время оплаты
+  completedAt?: string;       // Время завершения заказа
+  hasPendingItems: boolean;   // Есть ли новые блюда
   items: OrderItem[];
 }
 

@@ -8,7 +8,6 @@ import Modal from '@/components/ui/Modal';
 import Input from '@/components/ui/Input';
 import { getOrders, updateOrderStatus, getSignalRUrl, cancelOrderItem, confirmPendingItems, getRestaurantStatus, toggleRestaurantOrders, getRestaurants, getTableSessions, markSessionPaid, closeTableSession, markOrderPaidInSession } from '@/lib/api';
 import { Order, OrderStatus, OrderItemStatus, OrderItemStatusNames, Restaurant, TableSession, TableSessionStatus } from '@/types';
-import Select from '@/components/ui/Select';
 import { useAuthStore } from '@/stores/authStore';
 
 const statusLabels: Record<OrderStatus, string> = {
@@ -26,7 +25,6 @@ const statusColors: Record<OrderStatus, string> = {
 };
 
 export default function OrdersPage() {
-  const [orders, setOrders] = useState<Order[]>([]);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState<OrderStatus | 'all'>('all');
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
@@ -177,19 +175,6 @@ export default function OrdersPage() {
     }
   };
 
-  // Fetch orders
-  const fetchOrders = useCallback(async () => {
-    try {
-      const restaurantId = getCurrentRestaurantId();
-      const response = await getOrders(filter === 'all' ? undefined : filter, restaurantId || undefined);
-      setOrders(response.data);
-    } catch (error) {
-      console.error('Error fetching orders:', error);
-    } finally {
-      setLoading(false);
-    }
-  }, [filter, getCurrentRestaurantId]);
-
   // Fetch table sessions
   const fetchTableSessions = useCallback(async () => {
     try {
@@ -198,6 +183,8 @@ export default function OrdersPage() {
       setTableSessions(response.data);
     } catch (error) {
       console.error('Error fetching table sessions:', error);
+    } finally {
+      setLoading(false);
     }
   }, [getCurrentRestaurantId]);
 
@@ -270,7 +257,8 @@ export default function OrdersPage() {
     setCancellingItemId(itemId);
     try {
       await cancelOrderItem(orderId, itemId, reason || undefined);
-      fetchOrders();
+      fetchTableSessions();
+      // Update selectedOrder modal if open
       if (selectedOrder && selectedOrder.id === orderId) {
         const response = await getOrders();
         const updated = response.data.find((o: Order) => o.id === orderId);
@@ -288,7 +276,8 @@ export default function OrdersPage() {
   const handleConfirmPendingItems = async (orderId: string) => {
     try {
       await confirmPendingItems(orderId);
-      fetchOrders();
+      fetchTableSessions();
+      // Update selectedOrder modal if open
       if (selectedOrder && selectedOrder.id === orderId) {
         const response = await getOrders();
         const updated = response.data.find((o: Order) => o.id === orderId);
@@ -309,16 +298,16 @@ export default function OrdersPage() {
       .withAutomaticReconnect()
       .build();
 
-    connection.on('NewOrder', (order: Order) => {
-      setOrders((prev) => [order, ...prev]);
+    connection.on('NewOrder', () => {
+      // Refresh sessions to show new order
+      fetchTableSessions();
       setNewOrdersCount((prev) => prev + 1);
       playNotificationSound();
     });
 
     connection.on('OrderStatusUpdated', (updatedOrder: Order) => {
-      setOrders((prev) =>
-        prev.map((o) => (o.id === updatedOrder.id ? updatedOrder : o))
-      );
+      // Refresh sessions to reflect status change
+      fetchTableSessions();
       setSelectedOrder((prev) =>
         prev?.id === updatedOrder.id ? updatedOrder : prev
       );
@@ -342,8 +331,8 @@ export default function OrdersPage() {
         });
       }
 
-      // Refresh orders list
-      fetchOrders();
+      // Refresh table sessions
+      fetchTableSessions();
     });
 
     connection
@@ -359,16 +348,13 @@ export default function OrdersPage() {
     return () => {
       connection.stop();
     };
-  }, [playNotificationSound]);
+  }, [playNotificationSound, fetchTableSessions]);
 
-  // Fetch orders on mount and filter change
+  // Fetch data on mount and filter/view change
+  // Both views now use table sessions for grouped display
   useEffect(() => {
-    if (viewMode === 'orders') {
-      fetchOrders();
-    } else {
-      fetchTableSessions();
-    }
-  }, [fetchOrders, fetchTableSessions, viewMode]);
+    fetchTableSessions();
+  }, [fetchTableSessions, viewMode, filter]);
 
   // Reset new orders count when viewing
   useEffect(() => {
@@ -380,7 +366,7 @@ export default function OrdersPage() {
   const handleStatusChange = async (orderId: string, newStatus: OrderStatus) => {
     try {
       await updateOrderStatus(orderId, newStatus);
-      fetchOrders();
+      fetchTableSessions();
     } catch (error) {
       console.error('Error updating status:', error);
     }
@@ -409,10 +395,6 @@ export default function OrdersPage() {
     };
     return flow[status];
   };
-
-  const filteredOrders = orders.filter(
-    (order) => filter === 'all' || Number(order.status) === Number(filter)
-  );
 
   return (
     <AdminLayout>
@@ -512,7 +494,7 @@ export default function OrdersPage() {
             </svg>
             {soundEnabled ? 'Тест звука' : 'Включить звук'}
           </button>
-          <Button onClick={fetchOrders} variant="secondary">
+          <Button onClick={fetchTableSessions} variant="secondary">
             <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
             </svg>
@@ -551,34 +533,32 @@ export default function OrdersPage() {
         </button>
       </div>
 
-      {/* Filter tabs - only show in orders mode */}
-      {viewMode === 'orders' && (
-        <div className="mb-6 flex gap-2 flex-wrap">
+      {/* Filter tabs - show in both modes, but filter means different things */}
+      <div className="mb-6 flex gap-2 flex-wrap">
+        <button
+          onClick={() => setFilter('all')}
+          className={`px-4 py-2 rounded-lg font-medium transition-colors ${
+            filter === 'all'
+              ? 'bg-blue-600 text-white'
+              : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+          }`}
+        >
+          Все
+        </button>
+        {Object.entries(statusLabels).map(([status, label]) => (
           <button
-            onClick={() => setFilter('all')}
+            key={status}
+            onClick={() => setFilter(Number(status) as OrderStatus)}
             className={`px-4 py-2 rounded-lg font-medium transition-colors ${
-              filter === 'all'
+              filter === Number(status)
                 ? 'bg-blue-600 text-white'
                 : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
             }`}
           >
-            Все
+            {label}
           </button>
-          {Object.entries(statusLabels).map(([status, label]) => (
-            <button
-              key={status}
-              onClick={() => setFilter(Number(status) as OrderStatus)}
-              className={`px-4 py-2 rounded-lg font-medium transition-colors ${
-                filter === Number(status)
-                  ? 'bg-blue-600 text-white'
-                  : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-              }`}
-            >
-              {label}
-            </button>
-          ))}
-        </div>
-      )}
+        ))}
+      </div>
 
       {/* Table Sessions Grid - By Tables view */}
       {viewMode === 'tables' && (
@@ -721,10 +701,10 @@ export default function OrdersPage() {
         </>
       )}
 
-      {/* Orders grid - By Orders view */}
+      {/* Orders grid - By Orders view (grouped by table session) */}
       {viewMode === 'orders' && (loading ? (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          {[1, 2, 3, 4, 5, 6].map((i) => (
+        <div className="space-y-4">
+          {[1, 2, 3].map((i) => (
             <div key={i} className="animate-pulse bg-white rounded-xl p-6 shadow-sm">
               <div className="h-6 bg-gray-200 rounded w-1/2 mb-4"></div>
               <div className="h-4 bg-gray-200 rounded w-3/4 mb-2"></div>
@@ -732,94 +712,238 @@ export default function OrdersPage() {
             </div>
           ))}
         </div>
-      ) : filteredOrders.length === 0 ? (
-        <div className="bg-white rounded-xl p-12 text-center shadow-sm">
-          <svg className="w-16 h-16 mx-auto text-gray-300 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
-          </svg>
-          <h3 className="text-lg font-medium text-gray-900 mb-1">Нет заказов</h3>
-          <p className="text-gray-500">Новые заказы появятся здесь автоматически</p>
-        </div>
-      ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          {filteredOrders.map((order) => (
-            <div
-              key={order.id}
-              className={`bg-white rounded-xl p-6 shadow-sm border-2 transition-all cursor-pointer hover:shadow-md ${
-                order.status === OrderStatus.Pending
-                  ? 'border-yellow-400 animate-pulse'
-                  : 'border-transparent'
-              }`}
-              onClick={() => setSelectedOrder(order)}
-            >
-              <div className="flex items-center justify-between mb-4">
-                <div className="flex items-center gap-3">
-                  <div className="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center">
-                    <span className="text-xl font-bold text-blue-600">#{order.tableNumber}</span>
+      ) : (() => {
+        // Filter sessions based on order status filter
+        const filteredSessions = tableSessions.filter(session => {
+          if (filter === 'all') return true;
+          return session.orders.some(order => Number(order.status) === Number(filter));
+        });
+
+        return filteredSessions.length === 0 ? (
+          <div className="bg-white rounded-xl p-12 text-center shadow-sm">
+            <svg className="w-16 h-16 mx-auto text-gray-300 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+            </svg>
+            <h3 className="text-lg font-medium text-gray-900 mb-1">Нет заказов</h3>
+            <p className="text-gray-500">Новые заказы появятся здесь автоматически</p>
+          </div>
+        ) : (
+          <div className="space-y-4">
+            {filteredSessions.map((session) => {
+              // Filter orders within session if filter is applied
+              const sessionOrders = filter === 'all'
+                ? session.orders
+                : session.orders.filter(order => Number(order.status) === Number(filter));
+
+              const hasPendingOrders = sessionOrders.some(o => o.status === OrderStatus.Pending);
+              const hasNewItems = sessionOrders.some(o => o.hasPendingItems);
+
+              return (
+                <div
+                  key={session.id}
+                  className={`bg-white rounded-xl shadow-sm border-2 transition-all ${
+                    hasPendingOrders
+                      ? 'border-yellow-400'
+                      : hasNewItems
+                        ? 'border-orange-300'
+                        : 'border-transparent'
+                  }`}
+                >
+                  {/* Session header */}
+                  <div className="p-4 border-b border-gray-100">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-3">
+                        <div className="w-14 h-14 bg-blue-100 rounded-full flex items-center justify-center">
+                          <span className="text-xl font-bold text-blue-600">#{session.tableNumber}</span>
+                        </div>
+                        <div>
+                          <h3 className="font-semibold text-gray-900">
+                            {session.tableName || `Стол #${session.tableNumber}`}
+                            <span className="ml-2 text-gray-500 font-normal text-sm">
+                              ({session.orderCount} {session.orderCount === 1 ? 'заказ' : session.orderCount < 5 ? 'заказа' : 'заказов'})
+                            </span>
+                          </h3>
+                          <p className="text-sm text-gray-500">
+                            Начало: {formatDate(session.startedAt)}
+                          </p>
+                          {session.closedAt && (
+                            <p className="text-xs text-gray-400">
+                              Закрыто: {formatDate(session.closedAt)}
+                            </p>
+                          )}
+                        </div>
+                      </div>
+                      <div className="text-right">
+                        <span className={`px-3 py-1 rounded-full text-xs font-medium ${
+                          session.status === TableSessionStatus.Active ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-600'
+                        }`}>
+                          {session.status === TableSessionStatus.Active ? 'Активна' : 'Закрыта'}
+                        </span>
+                        {hasNewItems && (
+                          <p className="mt-1">
+                            <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-orange-100 text-orange-700 animate-pulse">
+                              Новые блюда
+                            </span>
+                          </p>
+                        )}
+                      </div>
+                    </div>
                   </div>
-                  <div>
-                    <h3 className="font-semibold text-gray-900">
-                      {order.tableName || `Стол #${order.tableNumber}`}
-                    </h3>
-                    {order.tableTypeName && (
-                      <span className="inline-block text-xs bg-gray-100 text-gray-600 px-2 py-0.5 rounded mr-2">
-                        {order.tableTypeName}
-                      </span>
-                    )}
-                    <p className="text-sm text-gray-500">{formatDate(order.createdAt)}</p>
-                    {order.restaurantName && (
-                      <p className="text-xs text-blue-500">{order.restaurantName}</p>
-                    )}
+
+                  {/* Orders in this session */}
+                  <div className="p-4 space-y-4">
+                    {sessionOrders.map((order) => (
+                      <div
+                        key={order.id}
+                        className={`p-4 rounded-lg border-2 ${
+                          order.status === OrderStatus.Pending
+                            ? 'bg-yellow-50 border-yellow-200'
+                            : order.hasPendingItems
+                              ? 'bg-orange-50 border-orange-200'
+                              : order.isPaid
+                                ? 'bg-green-50 border-green-200'
+                                : 'bg-gray-50 border-gray-200'
+                        }`}
+                      >
+                        <div className="flex items-center justify-between mb-3">
+                          <div className="flex items-center gap-2">
+                            <span className="font-medium text-gray-900">
+                              {order.guestPhone ? `Гость ${order.guestPhone.slice(-4).padStart(order.guestPhone.length, '•')}` : 'Гость'}
+                            </span>
+                            <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${statusColors[order.status]}`}>
+                              {statusLabels[order.status]}
+                            </span>
+                            {order.isPaid && (
+                              <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-700">
+                                Оплачено
+                              </span>
+                            )}
+                            {order.hasPendingItems && (
+                              <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-orange-100 text-orange-700 animate-pulse">
+                                Новые блюда
+                              </span>
+                            )}
+                          </div>
+                          <div className="text-right text-sm text-gray-500">
+                            {formatDate(order.createdAt)}
+                          </div>
+                        </div>
+
+                        {/* Timestamps */}
+                        <div className="mb-3 text-xs text-gray-500 space-x-3">
+                          {order.paidAt && (
+                            <span>Оплачено: {formatDate(order.paidAt)}</span>
+                          )}
+                          {order.completedAt && (
+                            <span>Завершено: {formatDate(order.completedAt)}</span>
+                          )}
+                        </div>
+
+                        {/* Order items */}
+                        <div className="space-y-1 mb-3">
+                          {order.items.map((item) => (
+                            <div key={item.id} className="flex justify-between text-sm">
+                              <span className={`${item.status === OrderItemStatus.Cancelled ? 'text-gray-400 line-through' : 'text-gray-700'}`}>
+                                {item.productName} x{item.quantity}
+                                {item.sizeName && <span className="text-gray-400"> ({item.sizeName})</span>}
+                                {item.status === OrderItemStatus.Pending && (
+                                  <span className="ml-1 text-xs text-orange-500">(новое)</span>
+                                )}
+                              </span>
+                              <span className={`${item.status === OrderItemStatus.Cancelled ? 'text-gray-400 line-through' : 'text-gray-900'}`}>
+                                {formatPrice(item.totalPrice)} TJS
+                              </span>
+                            </div>
+                          ))}
+                        </div>
+
+                        {/* Order totals and actions */}
+                        <div className="flex items-center justify-between pt-3 border-t border-gray-200">
+                          <div>
+                            <span className="text-sm text-gray-500">
+                              {formatPrice(order.subtotal)} + {formatPrice(order.serviceFeeShare)} обсл. =
+                            </span>
+                            <span className="ml-2 font-bold text-gray-900">{formatPrice(order.total)} TJS</span>
+                          </div>
+                          <div className="flex gap-2">
+                            {order.hasPendingItems && order.status !== OrderStatus.Cancelled && (
+                              <Button
+                                size="sm"
+                                variant="secondary"
+                                onClick={() => handleConfirmPendingItems(order.id)}
+                              >
+                                Подтвердить блюда
+                              </Button>
+                            )}
+                            {getNextStatus(order.status) && (
+                              <Button
+                                size="sm"
+                                onClick={() => handleStatusChange(order.id, getNextStatus(order.status)!)}
+                              >
+                                {statusLabels[getNextStatus(order.status)!]}
+                              </Button>
+                            )}
+                            {!order.isPaid && order.status !== OrderStatus.Cancelled && (
+                              <Button
+                                size="sm"
+                                variant="secondary"
+                                onClick={() => handleMarkOrderPaid(session.id, order.id)}
+                                disabled={markingPaid === order.id}
+                              >
+                                Оплачено
+                              </Button>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+
+                  {/* Session footer with totals */}
+                  <div className="p-4 border-t border-gray-100 bg-gray-50 rounded-b-xl">
+                    <div className="flex items-center justify-between mb-3">
+                      <div>
+                        <p className="text-sm text-gray-500">Сумма заказов</p>
+                        <p className="font-medium text-gray-700">{formatPrice(session.sessionSubtotal)} TJS</p>
+                        <p className="text-sm text-gray-500">+ Обслуживание ({session.serviceFeePercent}%): {formatPrice(session.sessionServiceFee)} TJS</p>
+                      </div>
+                      <div className="text-right">
+                        <p className="text-xl font-bold text-gray-900">ИТОГО: {formatPrice(session.sessionTotal)} TJS</p>
+                        <p className="text-sm">
+                          <span className="text-green-600">Оплачено: {formatPrice(session.paidAmount)}</span>
+                          {session.unpaidAmount > 0 && (
+                            <span className="text-orange-600 ml-2">Осталось: {formatPrice(session.unpaidAmount)}</span>
+                          )}
+                        </p>
+                      </div>
+                    </div>
+                    <div className="flex gap-2 justify-end">
+                      {session.unpaidAmount > 0 && (
+                        <Button
+                          size="sm"
+                          onClick={() => handleMarkSessionPaid(session.id)}
+                          disabled={markingPaid === session.id}
+                        >
+                          Отметить всё оплаченным
+                        </Button>
+                      )}
+                      {session.status === TableSessionStatus.Active && (
+                        <Button
+                          size="sm"
+                          variant="secondary"
+                          onClick={() => handleCloseSession(session.id)}
+                        >
+                          Закрыть стол
+                        </Button>
+                      )}
+                    </div>
                   </div>
                 </div>
-                <div className="flex flex-col items-end gap-1">
-                  <span className={`px-3 py-1 rounded-full text-xs font-medium ${statusColors[order.status]}`}>
-                    {statusLabels[order.status]}
-                  </span>
-                  {order.hasPendingItems && (
-                    <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-orange-100 text-orange-700 animate-pulse">
-                      Новые блюда
-                    </span>
-                  )}
-                </div>
-              </div>
-
-              <div className="space-y-2 mb-4">
-                {order.items.slice(0, 3).map((item) => (
-                  <div key={item.id} className="flex justify-between text-sm">
-                    <span className="text-gray-600">
-                      {item.productName} x{item.quantity}
-                    </span>
-                    <span className="text-gray-900">{formatPrice(item.totalPrice)} ₽</span>
-                  </div>
-                ))}
-                {order.items.length > 3 && (
-                  <p className="text-sm text-gray-500">
-                    +{order.items.length - 3} ещё...
-                  </p>
-                )}
-              </div>
-
-              <div className="flex items-center justify-between pt-4 border-t border-gray-100">
-                <span className="font-bold text-lg text-gray-900">
-                  {formatPrice(order.total)} ₽
-                </span>
-                {getNextStatus(order.status) && (
-                  <Button
-                    size="sm"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      handleStatusChange(order.id, getNextStatus(order.status)!);
-                    }}
-                  >
-                    {statusLabels[getNextStatus(order.status)!]}
-                  </Button>
-                )}
-              </div>
-            </div>
-          ))}
-        </div>
-      ))}
+              );
+            })}
+          </div>
+        );
+      })())}
 
       {/* Session details modal */}
       {selectedSession && (
