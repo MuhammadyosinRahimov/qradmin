@@ -124,6 +124,18 @@ export const cancelOrderItem = (orderId: string, itemId: string, reason?: string
 export const confirmPendingItems = (orderId: string) =>
   api.post(`/admin/orders/${orderId}/items/confirm`);
 
+// Table Sessions
+export const getTableSessions = (restaurantId?: string) =>
+  api.get('/admin/table-sessions', { params: { restaurantId } });
+export const getTableSession = (id: string) =>
+  api.get(`/admin/table-sessions/${id}`);
+export const closeTableSession = (id: string, reason?: string) =>
+  api.post(`/admin/table-sessions/${id}/close`, { reason });
+export const markSessionPaid = (id: string, note?: string) =>
+  api.post(`/admin/table-sessions/${id}/mark-paid`, { note });
+export const markOrderPaidInSession = (sessionId: string, orderId: string) =>
+  api.post(`/admin/table-sessions/${sessionId}/orders/${orderId}/mark-paid`);
+
 // SignalR Hub URL
 export const getSignalRUrl = () => {
   const baseUrl = process.env.NEXT_PUBLIC_API_URL || "https://yalla-co-menu-beckend-dev-47c9.twc1.net";

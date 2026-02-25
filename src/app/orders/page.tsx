@@ -6,8 +6,8 @@ import AdminLayout from '@/components/layout/AdminLayout';
 import Button from '@/components/ui/Button';
 import Modal from '@/components/ui/Modal';
 import Input from '@/components/ui/Input';
-import { getOrders, updateOrderStatus, getSignalRUrl, cancelOrderItem, confirmPendingItems, getRestaurantStatus, toggleRestaurantOrders, getRestaurants } from '@/lib/api';
-import { Order, OrderStatus, OrderItemStatus, OrderItemStatusNames, Restaurant } from '@/types';
+import { getOrders, updateOrderStatus, getSignalRUrl, cancelOrderItem, confirmPendingItems, getRestaurantStatus, toggleRestaurantOrders, getRestaurants, getTableSessions, markSessionPaid, closeTableSession, markOrderPaidInSession } from '@/lib/api';
+import { Order, OrderStatus, OrderItemStatus, OrderItemStatusNames, Restaurant, TableSession, TableSessionStatus } from '@/types';
 import Select from '@/components/ui/Select';
 import { useAuthStore } from '@/stores/authStore';
 
@@ -47,6 +47,12 @@ export default function OrdersPage() {
   const [restaurants, setRestaurants] = useState<Restaurant[]>([]);
   const [selectedRestaurantId, setSelectedRestaurantId] = useState<string>('');
   const isSuperAdmin = admin?.role === 'Admin';
+
+  // View mode: 'orders' or 'tables'
+  const [viewMode, setViewMode] = useState<'orders' | 'tables'>('orders');
+  const [tableSessions, setTableSessions] = useState<TableSession[]>([]);
+  const [selectedSession, setSelectedSession] = useState<TableSession | null>(null);
+  const [markingPaid, setMarkingPaid] = useState<string | null>(null);
 
   // Initialize AudioContext on user interaction
   const initAudio = useCallback(() => {
@@ -184,6 +190,70 @@ export default function OrdersPage() {
     }
   }, [filter, getCurrentRestaurantId]);
 
+  // Fetch table sessions
+  const fetchTableSessions = useCallback(async () => {
+    try {
+      const restaurantId = getCurrentRestaurantId();
+      const response = await getTableSessions(restaurantId || undefined);
+      setTableSessions(response.data);
+    } catch (error) {
+      console.error('Error fetching table sessions:', error);
+    }
+  }, [getCurrentRestaurantId]);
+
+  // Handle mark session as paid
+  const handleMarkSessionPaid = async (sessionId: string) => {
+    setMarkingPaid(sessionId);
+    try {
+      await markSessionPaid(sessionId);
+      fetchTableSessions();
+      if (selectedSession?.id === sessionId) {
+        const response = await getTableSessions();
+        const updated = response.data.find((s: TableSession) => s.id === sessionId);
+        if (updated) setSelectedSession(updated);
+        else setSelectedSession(null);
+      }
+    } catch (error) {
+      console.error('Error marking session paid:', error);
+      alert('Ошибка при отметке оплаты');
+    } finally {
+      setMarkingPaid(null);
+    }
+  };
+
+  // Handle mark individual order as paid
+  const handleMarkOrderPaid = async (sessionId: string, orderId: string) => {
+    setMarkingPaid(orderId);
+    try {
+      await markOrderPaidInSession(sessionId, orderId);
+      fetchTableSessions();
+      if (selectedSession?.id === sessionId) {
+        const response = await getTableSessions();
+        const updated = response.data.find((s: TableSession) => s.id === sessionId);
+        if (updated) setSelectedSession(updated);
+        else setSelectedSession(null);
+      }
+    } catch (error) {
+      console.error('Error marking order paid:', error);
+      alert('Ошибка при отметке оплаты');
+    } finally {
+      setMarkingPaid(null);
+    }
+  };
+
+  // Handle close session
+  const handleCloseSession = async (sessionId: string) => {
+    if (!confirm('Закрыть сессию стола?')) return;
+    try {
+      await closeTableSession(sessionId);
+      fetchTableSessions();
+      setSelectedSession(null);
+    } catch (error) {
+      console.error('Error closing session:', error);
+      alert('Ошибка при закрытии сессии');
+    }
+  };
+
   // Fetch restaurants for super admin on mount
   useEffect(() => {
     fetchRestaurants();
@@ -293,8 +363,12 @@ export default function OrdersPage() {
 
   // Fetch orders on mount and filter change
   useEffect(() => {
-    fetchOrders();
-  }, [fetchOrders]);
+    if (viewMode === 'orders') {
+      fetchOrders();
+    } else {
+      fetchTableSessions();
+    }
+  }, [fetchOrders, fetchTableSessions, viewMode]);
 
   // Reset new orders count when viewing
   useEffect(() => {
@@ -447,35 +521,201 @@ export default function OrdersPage() {
         </div>
       </div>
 
-      {/* Filter tabs */}
-      <div className="mb-6 flex gap-2 flex-wrap">
+      {/* View mode toggle */}
+      <div className="mb-4 flex gap-2">
         <button
-          onClick={() => setFilter('all')}
-          className={`px-4 py-2 rounded-lg font-medium transition-colors ${
-            filter === 'all'
+          onClick={() => setViewMode('orders')}
+          className={`px-4 py-2 rounded-lg font-medium transition-colors flex items-center gap-2 ${
+            viewMode === 'orders'
               ? 'bg-blue-600 text-white'
               : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
           }`}
         >
-          Все
+          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+          </svg>
+          По заказам
         </button>
-        {Object.entries(statusLabels).map(([status, label]) => (
+        <button
+          onClick={() => setViewMode('tables')}
+          className={`px-4 py-2 rounded-lg font-medium transition-colors flex items-center gap-2 ${
+            viewMode === 'tables'
+              ? 'bg-blue-600 text-white'
+              : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+          }`}
+        >
+          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
+          </svg>
+          По столам
+        </button>
+      </div>
+
+      {/* Filter tabs - only show in orders mode */}
+      {viewMode === 'orders' && (
+        <div className="mb-6 flex gap-2 flex-wrap">
           <button
-            key={status}
-            onClick={() => setFilter(Number(status) as OrderStatus)}
+            onClick={() => setFilter('all')}
             className={`px-4 py-2 rounded-lg font-medium transition-colors ${
-              filter === Number(status)
+              filter === 'all'
                 ? 'bg-blue-600 text-white'
                 : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
             }`}
           >
-            {label}
+            Все
           </button>
-        ))}
-      </div>
+          {Object.entries(statusLabels).map(([status, label]) => (
+            <button
+              key={status}
+              onClick={() => setFilter(Number(status) as OrderStatus)}
+              className={`px-4 py-2 rounded-lg font-medium transition-colors ${
+                filter === Number(status)
+                  ? 'bg-blue-600 text-white'
+                  : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+              }`}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
+      )}
 
-      {/* Orders grid */}
-      {loading ? (
+      {/* Table Sessions Grid - By Tables view */}
+      {viewMode === 'tables' && (
+        <>
+          {loading ? (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              {[1, 2, 3].map((i) => (
+                <div key={i} className="animate-pulse bg-white rounded-xl p-6 shadow-sm">
+                  <div className="h-6 bg-gray-200 rounded w-1/2 mb-4"></div>
+                  <div className="h-4 bg-gray-200 rounded w-3/4 mb-2"></div>
+                  <div className="h-4 bg-gray-200 rounded w-1/2"></div>
+                </div>
+              ))}
+            </div>
+          ) : tableSessions.length === 0 ? (
+            <div className="bg-white rounded-xl p-12 text-center shadow-sm">
+              <svg className="w-16 h-16 mx-auto text-gray-300 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z" />
+              </svg>
+              <h3 className="text-lg font-medium text-gray-900 mb-1">Нет активных столов</h3>
+              <p className="text-gray-500">Активные сессии столов появятся здесь</p>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+              {tableSessions.map((session) => (
+                <div
+                  key={session.id}
+                  className="bg-white rounded-xl shadow-sm border-2 border-transparent hover:border-blue-200 transition-all cursor-pointer"
+                  onClick={() => setSelectedSession(session)}
+                >
+                  {/* Session header */}
+                  <div className="p-4 border-b border-gray-100">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-3">
+                        <div className="w-14 h-14 bg-blue-100 rounded-full flex items-center justify-center">
+                          <span className="text-xl font-bold text-blue-600">#{session.tableNumber}</span>
+                        </div>
+                        <div>
+                          <h3 className="font-semibold text-gray-900">
+                            {session.tableName || `Стол #${session.tableNumber}`}
+                          </h3>
+                          <div className="flex items-center gap-2 text-sm text-gray-500">
+                            <span>{session.guestCount} {session.guestCount === 1 ? 'гость' : session.guestCount < 5 ? 'гостя' : 'гостей'}</span>
+                            <span>•</span>
+                            <span>{session.orderCount} {session.orderCount === 1 ? 'заказ' : session.orderCount < 5 ? 'заказа' : 'заказов'}</span>
+                          </div>
+                          <p className="text-xs text-gray-400">
+                            Начало: {formatDate(session.startedAt)}
+                          </p>
+                        </div>
+                      </div>
+                      <div className="text-right">
+                        <span className={`px-3 py-1 rounded-full text-xs font-medium ${
+                          session.status === TableSessionStatus.Active ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-600'
+                        }`}>
+                          {session.status === TableSessionStatus.Active ? 'Активна' : 'Закрыта'}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Orders list */}
+                  <div className="p-4 space-y-2 max-h-48 overflow-y-auto">
+                    {session.orders.map((order) => (
+                      <div
+                        key={order.id}
+                        className={`flex items-center justify-between p-2 rounded-lg ${
+                          order.isPaid ? 'bg-green-50' : 'bg-orange-50'
+                        }`}
+                      >
+                        <div>
+                          <p className="text-sm font-medium text-gray-700">
+                            {order.guestPhone ? `+${order.guestPhone.slice(-4).padStart(order.guestPhone.length, '•')}` : 'Гость'}
+                          </p>
+                          <p className="text-xs text-gray-500">
+                            {order.items.slice(0, 2).map(i => i.productName).join(', ')}
+                            {order.items.length > 2 && ` +${order.items.length - 2}`}
+                          </p>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <span className="font-semibold text-gray-900">{formatPrice(order.total)} TJS</span>
+                          <span className={`w-2 h-2 rounded-full ${order.isPaid ? 'bg-green-500' : 'bg-orange-500'}`} />
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+
+                  {/* Session footer */}
+                  <div className="p-4 border-t border-gray-100 bg-gray-50 rounded-b-xl">
+                    <div className="flex items-center justify-between mb-3">
+                      <div>
+                        <p className="text-sm text-gray-500">Итого стола</p>
+                        <p className="text-xl font-bold text-gray-900">{formatPrice(session.totalAmount)} TJS</p>
+                      </div>
+                      <div className="text-right">
+                        <p className="text-sm text-gray-500">Оплачено / Осталось</p>
+                        <p className="text-sm">
+                          <span className="text-green-600 font-medium">{formatPrice(session.paidAmount)}</span>
+                          {' / '}
+                          <span className="text-orange-600 font-medium">{formatPrice(session.unpaidAmount)}</span>
+                        </p>
+                      </div>
+                    </div>
+                    <div className="flex gap-2">
+                      {session.unpaidAmount > 0 && (
+                        <Button
+                          size="sm"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleMarkSessionPaid(session.id);
+                          }}
+                          disabled={markingPaid === session.id}
+                        >
+                          Отметить оплаченным
+                        </Button>
+                      )}
+                      <Button
+                        size="sm"
+                        variant="secondary"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleCloseSession(session.id);
+                        }}
+                      >
+                        Закрыть стол
+                      </Button>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </>
+      )}
+
+      {/* Orders grid - By Orders view */}
+      {viewMode === 'orders' && (loading ? (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           {[1, 2, 3, 4, 5, 6].map((i) => (
             <div key={i} className="animate-pulse bg-white rounded-xl p-6 shadow-sm">
@@ -571,6 +811,125 @@ export default function OrdersPage() {
               </div>
             </div>
           ))}
+        </div>
+      ))}
+
+      {/* Session details modal */}
+      {selectedSession && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-xl w-full max-w-2xl max-h-[90vh] overflow-y-auto">
+            <div className="p-6 border-b border-gray-200">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-4">
+                  <div className="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center">
+                    <span className="text-2xl font-bold text-blue-600">#{selectedSession.tableNumber}</span>
+                  </div>
+                  <div>
+                    <h2 className="text-xl font-bold text-gray-900">
+                      {selectedSession.tableName || `Стол #${selectedSession.tableNumber}`}
+                    </h2>
+                    <p className="text-gray-500">
+                      {selectedSession.guestCount} {selectedSession.guestCount === 1 ? 'гость' : selectedSession.guestCount < 5 ? 'гостя' : 'гостей'} • Начало: {formatDate(selectedSession.startedAt)}
+                    </p>
+                  </div>
+                </div>
+                <button
+                  onClick={() => setSelectedSession(null)}
+                  className="text-gray-400 hover:text-gray-600"
+                >
+                  <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
+              </div>
+            </div>
+
+            <div className="p-6">
+              <h3 className="font-semibold text-gray-900 mb-4">Заказы гостей</h3>
+              <div className="space-y-4">
+                {selectedSession.orders.map((order) => (
+                  <div
+                    key={order.id}
+                    className={`p-4 rounded-lg border-2 ${
+                      order.isPaid ? 'bg-green-50 border-green-200' : 'bg-orange-50 border-orange-200'
+                    }`}
+                  >
+                    <div className="flex items-center justify-between mb-2">
+                      <div className="flex items-center gap-2">
+                        <span className="font-medium text-gray-900">
+                          {order.guestPhone || 'Гость'}
+                        </span>
+                        <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${
+                          order.isPaid ? 'bg-green-100 text-green-700' : 'bg-orange-100 text-orange-700'
+                        }`}>
+                          {order.isPaid ? 'Оплачено' : 'Не оплачено'}
+                        </span>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <span className="font-bold text-gray-900">{formatPrice(order.total)} TJS</span>
+                        {!order.isPaid && (
+                          <Button
+                            size="sm"
+                            variant="secondary"
+                            onClick={() => handleMarkOrderPaid(selectedSession.id, order.id)}
+                            disabled={markingPaid === order.id}
+                          >
+                            Оплачено
+                          </Button>
+                        )}
+                      </div>
+                    </div>
+                    <div className="space-y-1">
+                      {order.items.map((item) => (
+                        <div key={item.id} className="flex justify-between text-sm">
+                          <span className="text-gray-600">
+                            {item.productName} x{item.quantity}
+                            {item.sizeName && <span className="text-gray-400"> ({item.sizeName})</span>}
+                          </span>
+                          <span className="text-gray-900">{formatPrice(item.totalPrice)} TJS</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              {/* Session totals */}
+              <div className="mt-6 p-4 bg-gray-50 rounded-lg">
+                <div className="flex justify-between mb-2">
+                  <span className="text-gray-600">Итого стола</span>
+                  <span className="font-bold text-lg text-gray-900">{formatPrice(selectedSession.totalAmount)} TJS</span>
+                </div>
+                <div className="flex justify-between mb-2">
+                  <span className="text-gray-600">Оплачено</span>
+                  <span className="font-medium text-green-600">{formatPrice(selectedSession.paidAmount)} TJS</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-gray-600">Осталось</span>
+                  <span className="font-medium text-orange-600">{formatPrice(selectedSession.unpaidAmount)} TJS</span>
+                </div>
+              </div>
+
+              {/* Actions */}
+              <div className="mt-6 flex gap-3">
+                {selectedSession.unpaidAmount > 0 && (
+                  <Button
+                    className="flex-1"
+                    onClick={() => handleMarkSessionPaid(selectedSession.id)}
+                    disabled={markingPaid === selectedSession.id}
+                  >
+                    Отметить всё оплаченным
+                  </Button>
+                )}
+                <Button
+                  variant="secondary"
+                  onClick={() => handleCloseSession(selectedSession.id)}
+                >
+                  Закрыть стол
+                </Button>
+              </div>
+            </div>
+          </div>
         </div>
       )}
 

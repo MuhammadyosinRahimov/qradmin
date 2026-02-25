@@ -213,4 +213,46 @@ export interface Order {
   specialInstructions?: string;
   items: OrderItem[];
   hasPendingItems: boolean;
+  isPaid?: boolean;
+  tableSessionId?: string;
+}
+
+// Table Session types
+export enum TableSessionStatus {
+  Active = 0,
+  Closed = 1,
+}
+
+export const TableSessionStatusNames: Record<number, string> = {
+  0: 'Активна',
+  1: 'Закрыта',
+};
+
+export interface SessionOrder {
+  id: string;
+  userId: string;
+  guestPhone?: string;
+  createdAt: string;
+  status: OrderStatus;
+  total: number;
+  isPaid: boolean;
+  items: OrderItem[];
+}
+
+export interface TableSession {
+  id: string;
+  tableId: string;
+  tableNumber: number;
+  tableName?: string;
+  restaurantId: string;
+  restaurantName?: string;
+  startedAt: string;
+  closedAt?: string;
+  status: TableSessionStatus;
+  totalAmount: number;
+  paidAmount: number;
+  unpaidAmount: number;
+  orderCount: number;
+  guestCount: number;
+  orders: SessionOrder[];
 }
