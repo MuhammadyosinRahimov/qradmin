@@ -28,6 +28,7 @@ export default function RestaurantsPage() {
     alifPassword: '',
     alifGate: 'salom',
     paymentLink: '',
+    serviceFeePercent: '10',
   });
   const [saving, setSaving] = useState(false);
 
@@ -48,7 +49,7 @@ export default function RestaurantsPage() {
 
   const openCreateModal = () => {
     setEditingRestaurant(null);
-    setFormData({ name: '', description: '', address: '', phone: '', adminEmail: '', adminPassword: '', adminName: '', dcMerchantId: '', dcSecretKey: '', dcArticul: '', alifKey: '', alifPassword: '', alifGate: 'salom', paymentLink: '' });
+    setFormData({ name: '', description: '', address: '', phone: '', adminEmail: '', adminPassword: '', adminName: '', dcMerchantId: '', dcSecretKey: '', dcArticul: '', alifKey: '', alifPassword: '', alifGate: 'salom', paymentLink: '', serviceFeePercent: '10' });
     setIsModalOpen(true);
   };
 
@@ -69,6 +70,7 @@ export default function RestaurantsPage() {
       alifPassword: restaurant.alifPassword || '',
       alifGate: restaurant.alifGate || 'salom',
       paymentLink: restaurant.paymentLink || '',
+      serviceFeePercent: String(restaurant.serviceFeePercent || 10),
     });
     setIsModalOpen(true);
   };
@@ -92,6 +94,7 @@ export default function RestaurantsPage() {
           alifPassword: formData.alifPassword || undefined,
           alifGate: formData.alifGate || undefined,
           paymentLink: formData.paymentLink || undefined,
+          serviceFeePercent: parseFloat(formData.serviceFeePercent) || 10,
         });
       } else {
         await createRestaurant({
@@ -311,6 +314,25 @@ export default function RestaurantsPage() {
           {/* Payment settings - only show when editing */}
           {editingRestaurant && (
             <>
+              {/* Service fee settings */}
+              <div className="border-t border-gray-200 pt-4 mt-4 space-y-4">
+                <h3 className="text-sm font-medium text-gray-700">Настройки обслуживания</h3>
+                <Input
+                  id="serviceFeePercent"
+                  label="Процент обслуживания (%)"
+                  type="number"
+                  min="0"
+                  max="100"
+                  step="0.1"
+                  value={formData.serviceFeePercent}
+                  onChange={(e) => setFormData({ ...formData, serviceFeePercent: e.target.value })}
+                  placeholder="10"
+                />
+                <p className="text-xs text-gray-500">
+                  Процент обслуживания, который добавляется к сумме заказов. По умолчанию 10%.
+                </p>
+              </div>
+
               {/* Alif Bank settings */}
               <div className="border-t border-gray-200 pt-4 mt-4 space-y-4">
                 <h3 className="text-sm font-medium text-gray-700">Настройки Alif Bank (приоритетный)</h3>

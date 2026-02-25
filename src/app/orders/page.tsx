@@ -659,7 +659,12 @@ export default function OrdersPage() {
                           </p>
                         </div>
                         <div className="flex items-center gap-2">
-                          <span className="font-semibold text-gray-900">{formatPrice(order.total)} TJS</span>
+                          <div className="text-right">
+                            <span className="font-semibold text-gray-900">{formatPrice(order.total)} TJS</span>
+                            <p className="text-xs text-gray-500">
+                              {formatPrice(order.subtotal)} + {formatPrice(order.serviceFeeShare)}
+                            </p>
+                          </div>
                           <span className={`w-2 h-2 rounded-full ${order.isPaid ? 'bg-green-500' : 'bg-orange-500'}`} />
                         </div>
                       </div>
@@ -670,8 +675,10 @@ export default function OrdersPage() {
                   <div className="p-4 border-t border-gray-100 bg-gray-50 rounded-b-xl">
                     <div className="flex items-center justify-between mb-3">
                       <div>
-                        <p className="text-sm text-gray-500">Итого стола</p>
-                        <p className="text-xl font-bold text-gray-900">{formatPrice(session.totalAmount)} TJS</p>
+                        <p className="text-sm text-gray-500">Сумма заказов</p>
+                        <p className="text-lg font-semibold text-gray-700">{formatPrice(session.sessionSubtotal)} TJS</p>
+                        <p className="text-sm text-gray-500">+ Обслуживание ({session.serviceFeePercent}%): {formatPrice(session.sessionServiceFee)} TJS</p>
+                        <p className="text-xl font-bold text-gray-900">Итого: {formatPrice(session.sessionTotal)} TJS</p>
                       </div>
                       <div className="text-right">
                         <p className="text-sm text-gray-500">Оплачено / Осталось</p>
@@ -864,9 +871,19 @@ export default function OrdersPage() {
                         }`}>
                           {order.isPaid ? 'Оплачено' : 'Не оплачено'}
                         </span>
+                        {order.isPaid && order.paidAt && (
+                          <span className="text-xs text-gray-500">
+                            {formatDate(order.paidAt)}
+                          </span>
+                        )}
                       </div>
                       <div className="flex items-center gap-2">
-                        <span className="font-bold text-gray-900">{formatPrice(order.total)} TJS</span>
+                        <div className="text-right">
+                          <span className="font-bold text-gray-900">{formatPrice(order.total)} TJS</span>
+                          <p className="text-xs text-gray-500">
+                            {formatPrice(order.subtotal)} + {formatPrice(order.serviceFeeShare)} обсл.
+                          </p>
+                        </div>
                         {!order.isPaid && (
                           <Button
                             size="sm"
@@ -897,8 +914,16 @@ export default function OrdersPage() {
               {/* Session totals */}
               <div className="mt-6 p-4 bg-gray-50 rounded-lg">
                 <div className="flex justify-between mb-2">
-                  <span className="text-gray-600">Итого стола</span>
-                  <span className="font-bold text-lg text-gray-900">{formatPrice(selectedSession.totalAmount)} TJS</span>
+                  <span className="text-gray-600">Сумма заказов</span>
+                  <span className="font-medium text-gray-900">{formatPrice(selectedSession.sessionSubtotal)} TJS</span>
+                </div>
+                <div className="flex justify-between mb-2">
+                  <span className="text-gray-600">Обслуживание ({selectedSession.serviceFeePercent}%)</span>
+                  <span className="font-medium text-gray-900">{formatPrice(selectedSession.sessionServiceFee)} TJS</span>
+                </div>
+                <div className="flex justify-between mb-2 pt-2 border-t border-gray-200">
+                  <span className="text-gray-900 font-semibold">Итого стола</span>
+                  <span className="font-bold text-lg text-gray-900">{formatPrice(selectedSession.sessionTotal)} TJS</span>
                 </div>
                 <div className="flex justify-between mb-2">
                   <span className="text-gray-600">Оплачено</span>

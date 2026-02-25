@@ -22,6 +22,8 @@ export interface Restaurant {
   onlinePaymentAvailable: boolean;
   // Payment link
   paymentLink?: string;
+  // Service fee
+  serviceFeePercent: number;
 }
 
 export interface Menu {
@@ -234,8 +236,11 @@ export interface SessionOrder {
   guestPhone?: string;
   createdAt: string;
   status: OrderStatus;
-  total: number;
+  subtotal: number;           // Сумма без service fee
+  serviceFeeShare: number;    // Доля service fee
+  total: number;              // Subtotal + ServiceFeeShare
   isPaid: boolean;
+  paidAt?: string;            // Время оплаты
   items: OrderItem[];
 }
 
@@ -249,7 +254,10 @@ export interface TableSession {
   startedAt: string;
   closedAt?: string;
   status: TableSessionStatus;
-  totalAmount: number;
+  sessionSubtotal: number;    // Сумма всех заказов (без service fee)
+  sessionServiceFee: number;  // Service fee на весь стол
+  sessionTotal: number;       // SessionSubtotal + SessionServiceFee
+  serviceFeePercent: number;  // Процент service fee
   paidAmount: number;
   unpaidAmount: number;
   orderCount: number;
