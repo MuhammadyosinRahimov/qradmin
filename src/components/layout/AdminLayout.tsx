@@ -21,17 +21,25 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
 
   if (!isAuthenticated) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-50 to-slate-100">
+        <div className="flex flex-col items-center gap-4">
+          <div className="relative">
+            <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-indigo-500 to-purple-600 animate-pulse" />
+            <div className="absolute inset-0 w-16 h-16 rounded-2xl bg-gradient-to-br from-indigo-500 to-purple-600 animate-ping opacity-20" />
+          </div>
+          <p className="text-sm text-slate-500 font-medium">Загрузка...</p>
+        </div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-slate-50 to-indigo-50/30">
       <Sidebar />
-      <main className="ml-64 min-h-screen">
-        <div className="p-6">{children}</div>
+      <main className="ml-72 min-h-screen">
+        <div className="p-8">
+          {children}
+        </div>
       </main>
     </div>
   );
