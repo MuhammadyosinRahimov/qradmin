@@ -632,6 +632,11 @@ export default function OrdersPage() {
                         <div>
                           <p className="text-sm font-medium text-gray-700">
                             {order.guestPhone ? `+${order.guestPhone.slice(-4).padStart(order.guestPhone.length, '•')}` : 'Гость'}
+                            {order.wantsCashPayment && (
+                              <span className="ml-2 px-1.5 py-0.5 rounded text-xs font-medium bg-amber-100 text-amber-700">
+                                Наличными
+                              </span>
+                            )}
                           </p>
                           <p className="text-xs text-gray-500">
                             {order.items.slice(0, 2).map(i => i.productName).join(', ')}
@@ -818,6 +823,11 @@ export default function OrdersPage() {
                                 Оплачено
                               </span>
                             )}
+                            {order.wantsCashPayment && (
+                              <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-amber-100 text-amber-700">
+                                Наличными
+                              </span>
+                            )}
                             {order.hasPendingItems && (
                               <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-orange-100 text-orange-700 animate-pulse">
                                 Новые блюда
@@ -995,6 +1005,11 @@ export default function OrdersPage() {
                         }`}>
                           {order.isPaid ? 'Оплачено' : 'Не оплачено'}
                         </span>
+                        {order.wantsCashPayment && (
+                          <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-amber-100 text-amber-700">
+                            Наличными
+                          </span>
+                        )}
                         {order.isPaid && order.paidAt && (
                           <span className="text-xs text-gray-500">
                             {formatDate(order.paidAt)}

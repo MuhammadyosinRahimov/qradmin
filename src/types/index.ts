@@ -243,6 +243,8 @@ export interface SessionOrder {
   paidAt?: string;            // Время оплаты
   completedAt?: string;       // Время завершения заказа
   hasPendingItems: boolean;   // Есть ли новые блюда
+  paymentMethod?: string;     // "cash" или "online"
+  wantsCashPayment: boolean;  // true если хочет наличными и не оплачено
   items: OrderItem[];
 }
 
