@@ -1,11 +1,11 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import AdminLayout from '@/components/layout/AdminLayout';
 import Button from '@/components/ui/Button';
 import Input from '@/components/ui/Input';
 import Modal from '@/components/ui/Modal';
-import { getRestaurants, createRestaurant, updateRestaurant, deleteRestaurant } from '@/lib/api';
+import { getRestaurants, createRestaurant, updateRestaurant, deleteRestaurant, uploadRestaurantImage, deleteRestaurantImage, getImageUrl } from '@/lib/api';
 import { Restaurant } from '@/types';
 
 export default function RestaurantsPage() {
@@ -24,13 +24,19 @@ export default function RestaurantsPage() {
     dcMerchantId: '',
     dcSecretKey: '',
     dcArticul: '',
-    alifKey: '',
-    alifPassword: '',
-    alifGate: 'salom',
     paymentLink: '',
     serviceFeePercent: '10',
+    deliveryEnabled: false,
+    deliveryFee: '0',
+    takeawayEnabled: false,
   });
   const [saving, setSaving] = useState(false);
+
+  // Image upload state
+  const [selectedImage, setSelectedImage] = useState<File | null>(null);
+  const [imagePreview, setImagePreview] = useState<string | null>(null);
+  const [uploadingImage, setUploadingImage] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     fetchRestaurants();
@@ -49,7 +55,9 @@ export default function RestaurantsPage() {
 
   const openCreateModal = () => {
     setEditingRestaurant(null);
-    setFormData({ name: '', description: '', address: '', phone: '', adminEmail: '', adminPassword: '', adminName: '', dcMerchantId: '', dcSecretKey: '', dcArticul: '', alifKey: '', alifPassword: '', alifGate: 'salom', paymentLink: '', serviceFeePercent: '10' });
+    setFormData({ name: '', description: '', address: '', phone: '', adminEmail: '', adminPassword: '', adminName: '', dcMerchantId: '', dcSecretKey: '', dcArticul: '', paymentLink: '', serviceFeePercent: '10', deliveryEnabled: false, deliveryFee: '0', takeawayEnabled: false });
+    setSelectedImage(null);
+    setImagePreview(null);
     setIsModalOpen(true);
   };
 
@@ -66,13 +74,92 @@ export default function RestaurantsPage() {
       dcMerchantId: restaurant.dcMerchantId || '',
       dcSecretKey: restaurant.dcSecretKey || '',
       dcArticul: restaurant.dcArticul || '',
-      alifKey: restaurant.alifKey || '',
-      alifPassword: restaurant.alifPassword || '',
-      alifGate: restaurant.alifGate || 'salom',
       paymentLink: restaurant.paymentLink || '',
       serviceFeePercent: String(restaurant.serviceFeePercent || 10),
+      deliveryEnabled: restaurant.deliveryEnabled || false,
+      deliveryFee: String(restaurant.deliveryFee || 0),
+      takeawayEnabled: restaurant.takeawayEnabled || false,
     });
+    setSelectedImage(null);
+    setImagePreview(restaurant.logoUrl ? getImageUrl(restaurant.logoUrl) : null);
     setIsModalOpen(true);
+  };
+
+  const handleImageSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      // Validate file type
+      const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp', 'image/gif'];
+      if (!allowedTypes.includes(file.type)) {
+        alert('Недопустимый формат файла. Разрешены: JPG, PNG, WebP, GIF');
+        return;
+      }
+
+      // Validate file size (max 5MB)
+      if (file.size > 5 * 1024 * 1024) {
+        alert('Размер файла не должен превышать 5 МБ');
+        return;
+      }
+
+      setSelectedImage(file);
+      setImagePreview(URL.createObjectURL(file));
+    }
+  };
+
+  const handleImageUpload = async () => {
+    if (!selectedImage || !editingRestaurant) return;
+
+    setUploadingImage(true);
+    try {
+      const formData = new FormData();
+      formData.append('file', selectedImage);
+
+      const response = await uploadRestaurantImage(editingRestaurant.id, formData);
+      setImagePreview(getImageUrl(response.data.imageUrl));
+      setSelectedImage(null);
+
+      // Update restaurant in list
+      setRestaurants(prev => prev.map(r =>
+        r.id === editingRestaurant.id
+          ? { ...r, logoUrl: response.data.imageUrl }
+          : r
+      ));
+
+      // Update editing restaurant
+      setEditingRestaurant({ ...editingRestaurant, logoUrl: response.data.imageUrl });
+    } catch (error) {
+      console.error('Error uploading image:', error);
+      alert('Ошибка при загрузке изображения');
+    } finally {
+      setUploadingImage(false);
+    }
+  };
+
+  const handleImageDelete = async () => {
+    if (!editingRestaurant) return;
+    if (!confirm('Удалить изображение ресторана?')) return;
+
+    setUploadingImage(true);
+    try {
+      await deleteRestaurantImage(editingRestaurant.id);
+      setImagePreview(null);
+      setSelectedImage(null);
+
+      // Update restaurant in list
+      setRestaurants(prev => prev.map(r =>
+        r.id === editingRestaurant.id
+          ? { ...r, logoUrl: undefined }
+          : r
+      ));
+
+      // Update editing restaurant
+      setEditingRestaurant({ ...editingRestaurant, logoUrl: undefined });
+    } catch (error) {
+      console.error('Error deleting image:', error);
+      alert('Ошибка при удалении изображения');
+    } finally {
+      setUploadingImage(false);
+    }
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -86,15 +173,16 @@ export default function RestaurantsPage() {
           description: formData.description,
           address: formData.address,
           phone: formData.phone,
+          logoUrl: editingRestaurant.logoUrl || undefined,
           isActive: editingRestaurant.isActive,
           dcMerchantId: formData.dcMerchantId || undefined,
           dcSecretKey: formData.dcSecretKey || undefined,
           dcArticul: formData.dcArticul || undefined,
-          alifKey: formData.alifKey || undefined,
-          alifPassword: formData.alifPassword || undefined,
-          alifGate: formData.alifGate || undefined,
           paymentLink: formData.paymentLink || undefined,
           serviceFeePercent: parseFloat(formData.serviceFeePercent) || 10,
+          deliveryEnabled: formData.deliveryEnabled,
+          deliveryFee: parseFloat(formData.deliveryFee) || 0,
+          takeawayEnabled: formData.takeawayEnabled,
         });
       } else {
         await createRestaurant({
@@ -146,6 +234,7 @@ export default function RestaurantsPage() {
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {[1, 2, 3].map((i) => (
             <div key={i} className="bg-white rounded-xl p-6 animate-pulse">
+              <div className="h-32 bg-gray-200 rounded-lg mb-4"></div>
               <div className="h-6 w-3/4 bg-gray-200 rounded mb-4"></div>
               <div className="h-4 w-full bg-gray-200 rounded mb-2"></div>
               <div className="h-4 w-2/3 bg-gray-200 rounded"></div>
@@ -163,79 +252,111 @@ export default function RestaurantsPage() {
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {restaurants.map((restaurant) => (
-            <div key={restaurant.id} className="bg-white rounded-xl p-6 shadow-sm">
-              <div className="flex items-start justify-between mb-4">
-                <div>
-                  <h3 className="text-lg font-semibold text-gray-900">{restaurant.name}</h3>
-                  <div className="flex flex-wrap gap-1">
-                    <span
-                      className={`inline-flex items-center px-2 py-0.5 text-xs font-medium rounded-full ${
-                        restaurant.isActive
-                          ? 'bg-green-100 text-green-700'
-                          : 'bg-gray-100 text-gray-600'
-                      }`}
+            <div key={restaurant.id} className="bg-white rounded-xl overflow-hidden shadow-sm hover:shadow-md transition-shadow">
+              {/* Restaurant image */}
+              <div className="h-32 bg-gradient-to-br from-orange-400 to-orange-500 relative">
+                {restaurant.logoUrl ? (
+                  <img
+                    src={getImageUrl(restaurant.logoUrl) || ''}
+                    alt={restaurant.name}
+                    className="w-full h-full object-cover"
+                  />
+                ) : (
+                  <div className="w-full h-full flex items-center justify-center">
+                    <svg className="w-16 h-16 text-white/50" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
+                    </svg>
+                  </div>
+                )}
+                {/* Status badges overlay */}
+                <div className="absolute top-2 right-2 flex flex-wrap gap-1">
+                  <span
+                    className={`inline-flex items-center px-2 py-0.5 text-xs font-medium rounded-full ${
+                      restaurant.isActive
+                        ? 'bg-green-100 text-green-700'
+                        : 'bg-gray-100 text-gray-600'
+                    }`}
+                  >
+                    {restaurant.isActive ? 'Активен' : 'Неактивен'}
+                  </span>
+                </div>
+              </div>
+
+              <div className="p-4">
+                <div className="flex items-start justify-between mb-2">
+                  <div>
+                    <h3 className="text-lg font-semibold text-gray-900">{restaurant.name}</h3>
+                    <div className="flex flex-wrap gap-1 mt-1">
+                      {restaurant.onlinePaymentAvailable && (
+                        <span className="inline-flex items-center px-2 py-0.5 text-xs font-medium rounded-full bg-blue-100 text-blue-700">
+                          Онлайн-оплата
+                        </span>
+                      )}
+                      {restaurant.deliveryEnabled && (
+                        <span className="inline-flex items-center px-2 py-0.5 text-xs font-medium rounded-full bg-purple-100 text-purple-700">
+                          Доставка
+                        </span>
+                      )}
+                      {restaurant.takeawayEnabled && (
+                        <span className="inline-flex items-center px-2 py-0.5 text-xs font-medium rounded-full bg-teal-100 text-teal-700">
+                          Самовывоз
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                  <div className="flex gap-1">
+                    <button
+                      onClick={() => openEditModal(restaurant)}
+                      className="p-2 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
                     >
-                      {restaurant.isActive ? 'Активен' : 'Неактивен'}
-                    </span>
-                    {restaurant.onlinePaymentAvailable && (
-                      <span className="inline-flex items-center px-2 py-0.5 text-xs font-medium rounded-full bg-blue-100 text-blue-700">
-                        Онлайн-оплата
-                      </span>
-                    )}
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                      </svg>
+                    </button>
+                    <button
+                      onClick={() => handleDelete(restaurant.id)}
+                      className="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                    >
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                      </svg>
+                    </button>
                   </div>
                 </div>
-                <div className="flex gap-2">
-                  <button
-                    onClick={() => openEditModal(restaurant)}
-                    className="p-2 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
-                  >
-                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-                    </svg>
-                  </button>
-                  <button
-                    onClick={() => handleDelete(restaurant.id)}
-                    className="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
-                  >
-                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                    </svg>
-                  </button>
-                </div>
-              </div>
 
-              {restaurant.description && (
-                <p className="text-sm text-gray-500 mb-4 line-clamp-2">{restaurant.description}</p>
-              )}
-
-              <div className="space-y-2 text-sm text-gray-600">
-                {restaurant.address && (
-                  <div className="flex items-center gap-2">
-                    <svg className="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
-                    </svg>
-                    <span className="truncate">{restaurant.address}</span>
-                  </div>
+                {restaurant.description && (
+                  <p className="text-sm text-gray-500 mb-3 line-clamp-2">{restaurant.description}</p>
                 )}
-                {restaurant.phone && (
-                  <div className="flex items-center gap-2">
-                    <svg className="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" />
-                    </svg>
-                    <span>{restaurant.phone}</span>
-                  </div>
-                )}
-              </div>
 
-              <div className="flex gap-4 mt-4 pt-4 border-t border-gray-100">
-                <div className="text-center">
-                  <p className="text-lg font-semibold text-gray-900">{restaurant.menuCount}</p>
-                  <p className="text-xs text-gray-500">Меню</p>
+                <div className="space-y-1.5 text-sm text-gray-600">
+                  {restaurant.address && (
+                    <div className="flex items-center gap-2">
+                      <svg className="w-4 h-4 text-gray-400 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
+                      </svg>
+                      <span className="truncate">{restaurant.address}</span>
+                    </div>
+                  )}
+                  {restaurant.phone && (
+                    <div className="flex items-center gap-2">
+                      <svg className="w-4 h-4 text-gray-400 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" />
+                      </svg>
+                      <span>{restaurant.phone}</span>
+                    </div>
+                  )}
                 </div>
-                <div className="text-center">
-                  <p className="text-lg font-semibold text-gray-900">{restaurant.tableCount}</p>
-                  <p className="text-xs text-gray-500">Столов</p>
+
+                <div className="flex gap-4 mt-4 pt-3 border-t border-gray-100">
+                  <div className="text-center">
+                    <p className="text-lg font-semibold text-gray-900">{restaurant.menuCount}</p>
+                    <p className="text-xs text-gray-500">Меню</p>
+                  </div>
+                  <div className="text-center">
+                    <p className="text-lg font-semibold text-gray-900">{restaurant.tableCount}</p>
+                    <p className="text-xs text-gray-500">Столов</p>
+                  </div>
                 </div>
               </div>
             </div>
@@ -251,6 +372,85 @@ export default function RestaurantsPage() {
         size="md"
       >
         <form onSubmit={handleSubmit} className="space-y-4">
+          {/* Image upload section - only show when editing */}
+          {editingRestaurant && (
+            <div className="space-y-3">
+              <label className="block text-sm font-medium text-gray-700">
+                Изображение ресторана
+              </label>
+
+              {/* Image preview */}
+              <div className="relative">
+                {imagePreview ? (
+                  <div className="relative w-full h-40 rounded-xl overflow-hidden bg-gray-100">
+                    <img
+                      src={imagePreview}
+                      alt="Preview"
+                      className="w-full h-full object-cover"
+                    />
+                    <div className="absolute inset-0 bg-black/40 opacity-0 hover:opacity-100 transition-opacity flex items-center justify-center gap-2">
+                      <button
+                        type="button"
+                        onClick={() => fileInputRef.current?.click()}
+                        className="p-2 bg-white rounded-full text-gray-700 hover:bg-gray-100"
+                      >
+                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                        </svg>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={handleImageDelete}
+                        disabled={uploadingImage}
+                        className="p-2 bg-red-500 rounded-full text-white hover:bg-red-600 disabled:opacity-50"
+                      >
+                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                        </svg>
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={() => fileInputRef.current?.click()}
+                    className="w-full h-40 rounded-xl border-2 border-dashed border-gray-300 hover:border-orange-400 transition-colors flex flex-col items-center justify-center gap-2 text-gray-500 hover:text-orange-500"
+                  >
+                    <svg className="w-10 h-10" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                    </svg>
+                    <span className="text-sm font-medium">Загрузить изображение</span>
+                    <span className="text-xs text-gray-400">JPG, PNG, WebP до 5 МБ</span>
+                  </button>
+                )}
+
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept="image/jpeg,image/jpg,image/png,image/webp,image/gif"
+                  onChange={handleImageSelect}
+                  className="hidden"
+                />
+              </div>
+
+              {/* Upload button - show when new image selected */}
+              {selectedImage && (
+                <Button
+                  type="button"
+                  onClick={handleImageUpload}
+                  isLoading={uploadingImage}
+                  className="w-full"
+                  variant="secondary"
+                >
+                  <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
+                  </svg>
+                  Загрузить изображение
+                </Button>
+              )}
+            </div>
+          )}
+
           <Input
             id="name"
             label="Название"
@@ -308,12 +508,72 @@ export default function RestaurantsPage() {
                 onChange={(e) => setFormData({ ...formData, adminName: e.target.value })}
                 placeholder="Имя администратора"
               />
+              <p className="text-xs text-gray-500">
+                Изображение можно загрузить после создания ресторана
+              </p>
             </div>
           )}
 
           {/* Payment settings - only show when editing */}
           {editingRestaurant && (
             <>
+              {/* Delivery/Takeaway settings */}
+              <div className="border-t border-gray-200 pt-4 mt-4 space-y-4">
+                <h3 className="text-sm font-medium text-gray-700">Режимы заказа</h3>
+
+                {/* Delivery toggle */}
+                <div className="flex items-center justify-between p-3 bg-purple-50 rounded-lg">
+                  <div className="flex items-center gap-3">
+                    <svg className="w-5 h-5 text-purple-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16V6a1 1 0 00-1-1H4a1 1 0 00-1 1v10a1 1 0 001 1h1m8-1a1 1 0 01-1 1H9m4-1V8a1 1 0 011-1h2.586a1 1 0 01.707.293l3.414 3.414a1 1 0 01.293.707V16a1 1 0 01-1 1h-1m-6-1a1 1 0 001 1h1M5 17a2 2 0 104 0m-4 0a2 2 0 114 0m6 0a2 2 0 104 0m-4 0a2 2 0 114 0" />
+                    </svg>
+                    <span className="font-medium text-purple-700">Доставка</span>
+                  </div>
+                  <label className="relative inline-flex items-center cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={formData.deliveryEnabled}
+                      onChange={(e) => setFormData({ ...formData, deliveryEnabled: e.target.checked })}
+                      className="sr-only peer"
+                    />
+                    <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-purple-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-purple-500"></div>
+                  </label>
+                </div>
+
+                {/* Delivery fee - only show if delivery is enabled */}
+                {formData.deliveryEnabled && (
+                  <Input
+                    id="deliveryFee"
+                    label="Стоимость доставки (TJS)"
+                    type="number"
+                    min="0"
+                    step="1"
+                    value={formData.deliveryFee}
+                    onChange={(e) => setFormData({ ...formData, deliveryFee: e.target.value })}
+                    placeholder="0"
+                  />
+                )}
+
+                {/* Takeaway toggle */}
+                <div className="flex items-center justify-between p-3 bg-teal-50 rounded-lg">
+                  <div className="flex items-center gap-3">
+                    <svg className="w-5 h-5 text-teal-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z" />
+                    </svg>
+                    <span className="font-medium text-teal-700">Самовывоз</span>
+                  </div>
+                  <label className="relative inline-flex items-center cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={formData.takeawayEnabled}
+                      onChange={(e) => setFormData({ ...formData, takeawayEnabled: e.target.checked })}
+                      className="sr-only peer"
+                    />
+                    <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-teal-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-teal-500"></div>
+                  </label>
+                </div>
+              </div>
+
               {/* Service fee settings */}
               <div className="border-t border-gray-200 pt-4 mt-4 space-y-4">
                 <h3 className="text-sm font-medium text-gray-700">Настройки обслуживания</h3>
@@ -333,43 +593,9 @@ export default function RestaurantsPage() {
                 </p>
               </div>
 
-              {/* Alif Bank settings */}
-              <div className="border-t border-gray-200 pt-4 mt-4 space-y-4">
-                <h3 className="text-sm font-medium text-gray-700">Настройки Alif Bank (приоритетный)</h3>
-                <Input
-                  id="alifKey"
-                  label="Alif Key"
-                  value={formData.alifKey}
-                  onChange={(e) => setFormData({ ...formData, alifKey: e.target.value })}
-                  placeholder="Merchant Key"
-                />
-                <Input
-                  id="alifPassword"
-                  label="Alif Password"
-                  type="password"
-                  value={formData.alifPassword}
-                  onChange={(e) => setFormData({ ...formData, alifPassword: e.target.value })}
-                  placeholder="Merchant Password"
-                />
-                <div>
-                  <label htmlFor="alifGate" className="block text-sm font-medium text-gray-700 mb-1">
-                    Gate
-                  </label>
-                  <select
-                    id="alifGate"
-                    value={formData.alifGate}
-                    onChange={(e) => setFormData({ ...formData, alifGate: e.target.value })}
-                    className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
-                  >
-                    <option value="salom">Salom</option>
-                    <option value="km">KoronaMir</option>
-                  </select>
-                </div>
-              </div>
-
               {/* DC Bank settings */}
               <div className="border-t border-gray-200 pt-4 mt-4 space-y-4">
-                <h3 className="text-sm font-medium text-gray-700">Настройки DC Bank (резервный)</h3>
+                <h3 className="text-sm font-medium text-gray-700">Настройки DC Bank</h3>
                 <Input
                   id="dcMerchantId"
                   label="Merchant ID"

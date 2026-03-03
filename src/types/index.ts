@@ -15,15 +15,15 @@ export interface Restaurant {
   dcMerchantId?: string;
   dcSecretKey?: string;
   dcArticul?: string;
-  // Alif Bank fields
-  alifKey?: string;
-  alifPassword?: string;
-  alifGate?: string;
   onlinePaymentAvailable: boolean;
   // Payment link
   paymentLink?: string;
   // Service fee
   serviceFeePercent: number;
+  // Delivery/Takeaway settings
+  deliveryEnabled: boolean;
+  deliveryFee: number;
+  takeawayEnabled: boolean;
 }
 
 export interface Menu {
@@ -172,6 +172,18 @@ export const OrderStatusNames: Record<number, string> = {
   3: 'Отменён',
 };
 
+export enum OrderType {
+  DineIn = 0,
+  Delivery = 1,
+  Takeaway = 2,
+}
+
+export const OrderTypeNames: Record<number, string> = {
+  0: 'В ресторане',
+  1: 'Доставка',
+  2: 'Самовывоз',
+};
+
 export enum OrderItemStatus {
   Pending = 0,
   Active = 1,
@@ -217,6 +229,12 @@ export interface Order {
   hasPendingItems: boolean;
   isPaid?: boolean;
   tableSessionId?: string;
+  // New fields for delivery/takeaway
+  orderType?: OrderType;
+  deliveryAddress?: string;
+  customerName?: string;
+  customerPhone?: string;
+  deliveryFee?: number;
 }
 
 // Table Session types
@@ -246,6 +264,12 @@ export interface SessionOrder {
   paymentMethod?: string;     // "cash" или "online"
   wantsCashPayment: boolean;  // true если хочет наличными и не оплачено
   items: OrderItem[];
+  // New fields for delivery/takeaway
+  orderType?: OrderType;
+  deliveryAddress?: string;
+  customerName?: string;
+  customerPhone?: string;
+  deliveryFee?: number;
 }
 
 export interface TableSession {

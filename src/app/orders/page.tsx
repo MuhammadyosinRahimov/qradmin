@@ -7,7 +7,7 @@ import Button from '@/components/ui/Button';
 import Modal from '@/components/ui/Modal';
 import Input from '@/components/ui/Input';
 import { getOrders, updateOrderStatus, getSignalRUrl, cancelOrderItem, confirmPendingItems, getRestaurantStatus, toggleRestaurantOrders, getRestaurants, getTableSessions, markSessionPaid, closeTableSession, markOrderPaidInSession } from '@/lib/api';
-import { Order, OrderStatus, OrderItemStatus, OrderItemStatusNames, Restaurant, TableSession, TableSessionStatus } from '@/types';
+import { Order, OrderStatus, OrderItemStatus, OrderItemStatusNames, Restaurant, TableSession, TableSessionStatus, OrderType, OrderTypeNames } from '@/types';
 import { useAuthStore } from '@/stores/authStore';
 
 const statusLabels: Record<OrderStatus, string> = {
@@ -26,7 +26,8 @@ const statusColors: Record<OrderStatus, string> = {
 
 export default function OrdersPage() {
   const [loading, setLoading] = useState(true);
-  const [filter, setFilter] = useState<OrderStatus | 'all'>('all');
+  const [filter, setFilter] = useState<OrderStatus | 'all' | 'paid'>('all');
+  const [orderTypeFilter, setOrderTypeFilter] = useState<OrderType | 'all'>('all');
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
   const [newOrdersCount, setNewOrdersCount] = useState(0);
   const connectionRef = useRef<signalR.HubConnection | null>(null);
@@ -175,18 +176,34 @@ export default function OrdersPage() {
     }
   };
 
+  // Helper: determine session status from order filter
+  const getSessionStatusFromFilter = useCallback((orderFilter: OrderStatus | 'all' | 'paid'): string => {
+    // For completed, cancelled, or paid orders, we need to look at all sessions (including closed)
+    if (orderFilter === OrderStatus.Completed || orderFilter === OrderStatus.Cancelled || orderFilter === 'paid') {
+      return 'all';
+    }
+    // For "all" filter, also get all sessions to show full history
+    if (orderFilter === 'all') {
+      return 'all';
+    }
+    // For pending/confirmed, only active sessions
+    return 'active';
+  }, []);
+
   // Fetch table sessions
-  const fetchTableSessions = useCallback(async () => {
+  const fetchTableSessions = useCallback(async (sessionStatus?: string) => {
     try {
       const restaurantId = getCurrentRestaurantId();
-      const response = await getTableSessions(restaurantId || undefined);
+      // Use provided status or determine from current filter
+      const status = sessionStatus ?? getSessionStatusFromFilter(filter);
+      const response = await getTableSessions(restaurantId || undefined, status);
       setTableSessions(response.data);
     } catch (error) {
       console.error('Error fetching table sessions:', error);
     } finally {
       setLoading(false);
     }
-  }, [getCurrentRestaurantId]);
+  }, [getCurrentRestaurantId, filter, getSessionStatusFromFilter]);
 
   // Handle mark session as paid
   const handleMarkSessionPaid = async (sessionId: string) => {
@@ -353,8 +370,9 @@ export default function OrdersPage() {
   // Fetch data on mount and filter/view change
   // Both views now use table sessions for grouped display
   useEffect(() => {
-    fetchTableSessions();
-  }, [fetchTableSessions, viewMode, filter]);
+    const sessionStatus = getSessionStatusFromFilter(filter);
+    fetchTableSessions(sessionStatus);
+  }, [fetchTableSessions, getSessionStatusFromFilter, viewMode, filter]);
 
   // Reset new orders count when viewing
   useEffect(() => {
@@ -494,7 +512,7 @@ export default function OrdersPage() {
             </svg>
             {soundEnabled ? 'Тест звука' : 'Включить звук'}
           </button>
-          <Button onClick={fetchTableSessions} variant="secondary">
+          <Button onClick={() => fetchTableSessions()} variant="secondary">
             <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
             </svg>
@@ -533,7 +551,60 @@ export default function OrdersPage() {
         </button>
       </div>
 
-      {/* Filter tabs - show in both modes, but filter means different things */}
+      {/* Order type filter tabs */}
+      <div className="mb-4 flex gap-2 flex-wrap">
+        <button
+          onClick={() => setOrderTypeFilter('all')}
+          className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${
+            orderTypeFilter === 'all'
+              ? 'bg-orange-500 text-white'
+              : 'bg-orange-50 text-orange-600 hover:bg-orange-100'
+          }`}
+        >
+          Все типы
+        </button>
+        <button
+          onClick={() => setOrderTypeFilter(OrderType.DineIn)}
+          className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors flex items-center gap-1 ${
+            orderTypeFilter === OrderType.DineIn
+              ? 'bg-orange-500 text-white'
+              : 'bg-orange-50 text-orange-600 hover:bg-orange-100'
+          }`}
+        >
+          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z" />
+          </svg>
+          В ресторане
+        </button>
+        <button
+          onClick={() => setOrderTypeFilter(OrderType.Delivery)}
+          className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors flex items-center gap-1 ${
+            orderTypeFilter === OrderType.Delivery
+              ? 'bg-orange-500 text-white'
+              : 'bg-orange-50 text-orange-600 hover:bg-orange-100'
+          }`}
+        >
+          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16V6a1 1 0 00-1-1H4a1 1 0 00-1 1v10a1 1 0 001 1h1m8-1a1 1 0 01-1 1H9m4-1V8a1 1 0 011-1h2.586a1 1 0 01.707.293l3.414 3.414a1 1 0 01.293.707V16a1 1 0 01-1 1h-1m-6-1a1 1 0 001 1h1M5 17a2 2 0 104 0m-4 0a2 2 0 114 0m6 0a2 2 0 104 0m-4 0a2 2 0 114 0" />
+          </svg>
+          Доставка
+        </button>
+        <button
+          onClick={() => setOrderTypeFilter(OrderType.Takeaway)}
+          className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors flex items-center gap-1 ${
+            orderTypeFilter === OrderType.Takeaway
+              ? 'bg-orange-500 text-white'
+              : 'bg-orange-50 text-orange-600 hover:bg-orange-100'
+          }`}
+        >
+          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z" />
+          </svg>
+          Самовывоз
+        </button>
+      </div>
+
+      {/* Status filter tabs */}
       <div className="mb-6 flex gap-2 flex-wrap">
         <button
           onClick={() => setFilter('all')}
@@ -558,6 +629,16 @@ export default function OrdersPage() {
             {label}
           </button>
         ))}
+        <button
+          onClick={() => setFilter('paid')}
+          className={`px-4 py-2 rounded-lg font-medium transition-colors ${
+            filter === 'paid'
+              ? 'bg-green-600 text-white'
+              : 'bg-green-100 text-green-600 hover:bg-green-200'
+          }`}
+        >
+          Оплачено
+        </button>
       </div>
 
       {/* Table Sessions Grid - By Tables view */}
@@ -718,10 +799,25 @@ export default function OrdersPage() {
           ))}
         </div>
       ) : (() => {
-        // Filter sessions based on order status filter
+        // Filter sessions based on order status and type filters
         const filteredSessions = tableSessions.filter(session => {
-          if (filter === 'all') return true;
-          return session.orders.some(order => Number(order.status) === Number(filter));
+          // Status filter
+          if (filter !== 'all') {
+            if (filter === 'paid') {
+              // For 'paid' filter, check if any order is paid
+              const hasPaidOrders = session.orders.some(order => order.isPaid);
+              if (!hasPaidOrders) return false;
+            } else {
+              const hasMatchingStatus = session.orders.some(order => Number(order.status) === Number(filter));
+              if (!hasMatchingStatus) return false;
+            }
+          }
+          // Order type filter
+          if (orderTypeFilter !== 'all') {
+            const hasMatchingType = session.orders.some(order => Number(order.orderType || 0) === Number(orderTypeFilter));
+            if (!hasMatchingType) return false;
+          }
+          return true;
         });
 
         return filteredSessions.length === 0 ? (
@@ -736,9 +832,16 @@ export default function OrdersPage() {
           <div className="space-y-4">
             {filteredSessions.map((session) => {
               // Filter orders within session if filter is applied
-              const sessionOrders = filter === 'all'
+              let sessionOrders = filter === 'all'
                 ? session.orders
-                : session.orders.filter(order => Number(order.status) === Number(filter));
+                : filter === 'paid'
+                  ? session.orders.filter(order => order.isPaid)
+                  : session.orders.filter(order => Number(order.status) === Number(filter));
+
+              // Also filter by order type
+              if (orderTypeFilter !== 'all') {
+                sessionOrders = sessionOrders.filter(order => Number(order.orderType || 0) === Number(orderTypeFilter));
+              }
 
               const hasPendingOrders = sessionOrders.some(o => o.status === OrderStatus.Pending);
               const hasNewItems = sessionOrders.some(o => o.hasPendingItems);
@@ -811,10 +914,27 @@ export default function OrdersPage() {
                         }`}
                       >
                         <div className="flex items-center justify-between mb-3">
-                          <div className="flex items-center gap-2">
+                          <div className="flex items-center gap-2 flex-wrap">
                             <span className="font-medium text-gray-900">
-                              {order.guestPhone ? `Гость ${order.guestPhone.slice(-4).padStart(order.guestPhone.length, '•')}` : 'Гость'}
+                              {order.customerName || (order.guestPhone ? `Гость ${order.guestPhone.slice(-4).padStart(order.guestPhone.length, '•')}` : 'Гость')}
                             </span>
+                            {/* Order type badge */}
+                            {order.orderType === OrderType.Delivery && (
+                              <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-purple-100 text-purple-700 flex items-center gap-1">
+                                <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16V6a1 1 0 00-1-1H4a1 1 0 00-1 1v10a1 1 0 001 1h1m8-1a1 1 0 01-1 1H9m4-1V8a1 1 0 011-1h2.586a1 1 0 01.707.293l3.414 3.414a1 1 0 01.293.707V16a1 1 0 01-1 1h-1m-6-1a1 1 0 001 1h1M5 17a2 2 0 104 0m-4 0a2 2 0 114 0m6 0a2 2 0 104 0m-4 0a2 2 0 114 0" />
+                                </svg>
+                                Доставка
+                              </span>
+                            )}
+                            {order.orderType === OrderType.Takeaway && (
+                              <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-teal-100 text-teal-700 flex items-center gap-1">
+                                <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z" />
+                                </svg>
+                                Самовывоз
+                              </span>
+                            )}
                             <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${statusColors[order.status]}`}>
                               {statusLabels[order.status]}
                             </span>
@@ -838,6 +958,45 @@ export default function OrdersPage() {
                             {formatDate(order.createdAt)}
                           </div>
                         </div>
+
+                        {/* Delivery/Takeaway info */}
+                        {order.orderType === OrderType.Delivery && order.deliveryAddress && (
+                          <div className="mb-2 p-2 bg-purple-50 rounded-lg text-sm">
+                            <div className="flex items-start gap-2">
+                              <svg className="w-4 h-4 text-purple-500 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
+                              </svg>
+                              <span className="text-purple-700">{order.deliveryAddress}</span>
+                            </div>
+                            {order.customerPhone && (
+                              <div className="flex items-center gap-2 mt-1 ml-6">
+                                <svg className="w-3 h-3 text-purple-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" />
+                                </svg>
+                                <span className="text-purple-600 text-xs">{order.customerPhone}</span>
+                              </div>
+                            )}
+                            {order.deliveryFee !== undefined && order.deliveryFee > 0 && (
+                              <div className="text-xs text-purple-600 mt-1 ml-6">
+                                Доставка: {formatPrice(order.deliveryFee)} TJS
+                              </div>
+                            )}
+                          </div>
+                        )}
+
+                        {order.orderType === OrderType.Takeaway && (
+                          <div className="mb-2 p-2 bg-teal-50 rounded-lg text-sm">
+                            <div className="flex items-center gap-2">
+                              <svg className="w-4 h-4 text-teal-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                              </svg>
+                              <span className="text-teal-700">{order.customerName || 'Гость'}</span>
+                              {order.customerPhone && (
+                                <span className="text-teal-600 text-xs">({order.customerPhone})</span>
+                              )}
+                            </div>
+                          </div>
+                        )}
 
                         {/* Timestamps */}
                         <div className="mb-3 text-xs text-gray-500 space-x-3">

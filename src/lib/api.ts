@@ -62,6 +62,11 @@ export const deleteRestaurant = (id: string) => api.delete(`/admin/restaurants/$
 export const toggleRestaurantOrders = (id: string, acceptingOrders: boolean, pauseMessage?: string) =>
   api.post(`/admin/restaurants/${id}/toggle-orders`, { acceptingOrders, pauseMessage });
 export const getRestaurantStatus = (id: string) => api.get(`/admin/restaurants/${id}/status`);
+export const uploadRestaurantImage = (id: string, formData: FormData) =>
+  api.post(`/admin/restaurants/${id}/upload-image`, formData, {
+    headers: { 'Content-Type': 'multipart/form-data' },
+  });
+export const deleteRestaurantImage = (id: string) => api.delete(`/admin/restaurants/${id}/image`);
 
 // Menus
 export const getMenus = (restaurantId?: string) =>
@@ -125,8 +130,8 @@ export const confirmPendingItems = (orderId: string) =>
   api.post(`/admin/orders/${orderId}/items/confirm`);
 
 // Table Sessions
-export const getTableSessions = (restaurantId?: string) =>
-  api.get('/admin/table-sessions', { params: { restaurantId } });
+export const getTableSessions = (restaurantId?: string, sessionStatus?: string) =>
+  api.get('/admin/table-sessions', { params: { restaurantId, status: sessionStatus } });
 export const getTableSession = (id: string) =>
   api.get(`/admin/table-sessions/${id}`);
 export const closeTableSession = (id: string, reason?: string) =>
@@ -138,6 +143,6 @@ export const markOrderPaidInSession = (sessionId: string, orderId: string) =>
 
 // SignalR Hub URL
 export const getSignalRUrl = () => {
-  const baseUrl = process.env.NEXT_PUBLIC_API_URL || "https://yalla-co-menu-beckend-dev-47c9.twc1.net";
+  const baseUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5079/";
   return baseUrl.replace('/api', '') + '/hubs/orders';
 };

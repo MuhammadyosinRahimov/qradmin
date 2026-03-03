@@ -45,7 +45,9 @@ export const useAuthStore = create<AuthState>()(
             restaurantName: data.restaurantName,
           };
 
-          localStorage.setItem('admin_token', data.token);
+          if (typeof window !== 'undefined') {
+            localStorage.setItem('admin_token', data.token);
+          }
 
           set({
             token: data.token,
@@ -64,7 +66,9 @@ export const useAuthStore = create<AuthState>()(
       },
 
       logout: () => {
-        localStorage.removeItem('admin_token');
+        if (typeof window !== 'undefined') {
+          localStorage.removeItem('admin_token');
+        }
         set({
           token: null,
           admin: null,
