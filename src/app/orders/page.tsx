@@ -13,14 +13,12 @@ import { useAuthStore } from '@/stores/authStore';
 const statusLabels: Record<OrderStatus, string> = {
   [OrderStatus.Pending]: 'Новый',
   [OrderStatus.Confirmed]: 'Подтверждён',
-  [OrderStatus.Completed]: 'Завершён',
   [OrderStatus.Cancelled]: 'Отменён',
 };
 
 const statusColors: Record<OrderStatus, string> = {
   [OrderStatus.Pending]: 'bg-yellow-100 text-yellow-800',
   [OrderStatus.Confirmed]: 'bg-blue-100 text-blue-800',
-  [OrderStatus.Completed]: 'bg-gray-100 text-gray-800',
   [OrderStatus.Cancelled]: 'bg-red-100 text-red-800',
 };
 
@@ -178,8 +176,8 @@ export default function OrdersPage() {
 
   // Helper: determine session status from order filter
   const getSessionStatusFromFilter = useCallback((orderFilter: OrderStatus | 'all' | 'paid'): string => {
-    // For completed, cancelled, or paid orders, we need to look at all sessions (including closed)
-    if (orderFilter === OrderStatus.Completed || orderFilter === OrderStatus.Cancelled || orderFilter === 'paid') {
+    // For cancelled or paid orders, we need to look at all sessions (including closed)
+    if (orderFilter === OrderStatus.Cancelled || orderFilter === 'paid') {
       return 'all';
     }
     // For "all" filter, also get all sessions to show full history
@@ -407,8 +405,7 @@ export default function OrdersPage() {
   const getNextStatus = (status: OrderStatus): OrderStatus | null => {
     const flow: Record<OrderStatus, OrderStatus | null> = {
       [OrderStatus.Pending]: OrderStatus.Confirmed,
-      [OrderStatus.Confirmed]: OrderStatus.Completed,
-      [OrderStatus.Completed]: null,
+      [OrderStatus.Confirmed]: null,
       [OrderStatus.Cancelled]: null,
     };
     return flow[status];
@@ -1360,7 +1357,7 @@ export default function OrdersPage() {
                         <span className={`font-medium ${isCancelled ? 'text-gray-400 line-through' : 'text-gray-900'}`}>
                           {formatPrice(item.totalPrice)} TJS
                         </span>
-                        {!isCancelled && selectedOrder.status !== OrderStatus.Completed && selectedOrder.status !== OrderStatus.Cancelled && (
+                        {!isCancelled && selectedOrder.status !== OrderStatus.Cancelled && (
                           <button
                             onClick={() => handleCancelItem(selectedOrder.id, item.id)}
                             disabled={cancellingItemId === item.id}
@@ -1412,8 +1409,7 @@ export default function OrdersPage() {
                     {statusLabels[getNextStatus(selectedOrder.status)!]}
                   </Button>
                 )}
-                {selectedOrder.status !== OrderStatus.Cancelled &&
-                  selectedOrder.status !== OrderStatus.Completed && (
+                {selectedOrder.status !== OrderStatus.Cancelled && (
                     <Button
                       variant="danger"
                       onClick={() => {
