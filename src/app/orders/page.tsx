@@ -7,8 +7,9 @@ import Button from '@/components/ui/Button';
 import Modal from '@/components/ui/Modal';
 import Input from '@/components/ui/Input';
 import { getOrders, updateOrderStatus, getSignalRUrl, cancelOrderItem, confirmPendingItems, getRestaurantStatus, toggleRestaurantOrders, getRestaurants, getTableSessions, markSessionPaid, closeTableSession, markOrderPaidInSession } from '@/lib/api';
-import { Order, OrderStatus, OrderItemStatus, OrderItemStatusNames, Restaurant, TableSession, TableSessionStatus, OrderType, OrderTypeNames } from '@/types';
+import { Order, OrderStatus, OrderItemStatus, OrderItemStatusNames, Restaurant, TableSession, TableSessionStatus, OrderType, OrderTypeNames, SessionOrder } from '@/types';
 import { useAuthStore } from '@/stores/authStore';
+import KanbanBoard from '@/components/orders/KanbanBoard';
 
 const statusLabels: Record<OrderStatus, string> = {
   [OrderStatus.Pending]: 'Новый',
@@ -45,11 +46,14 @@ export default function OrdersPage() {
   const [selectedRestaurantId, setSelectedRestaurantId] = useState<string>('');
   const isSuperAdmin = admin?.role === 'Admin';
 
-  // View mode: 'orders' or 'tables'
-  const [viewMode, setViewMode] = useState<'orders' | 'tables'>('orders');
+  // View mode: 'orders', 'tables', or 'kanban'
+  const [viewMode, setViewMode] = useState<'orders' | 'tables' | 'kanban'>('orders');
   const [tableSessions, setTableSessions] = useState<TableSession[]>([]);
   const [selectedSession, setSelectedSession] = useState<TableSession | null>(null);
   const [markingPaid, setMarkingPaid] = useState<string | null>(null);
+
+  // Kanban selected order
+  const [selectedKanbanOrder, setSelectedKanbanOrder] = useState<{ order: SessionOrder; session: TableSession } | null>(null);
 
   // Initialize AudioContext on user interaction
   const initAudio = useCallback(() => {
@@ -546,6 +550,19 @@ export default function OrdersPage() {
           </svg>
           По столам
         </button>
+        <button
+          onClick={() => setViewMode('kanban')}
+          className={`px-4 py-2 rounded-lg font-medium transition-colors flex items-center gap-2 ${
+            viewMode === 'kanban'
+              ? 'bg-blue-600 text-white'
+              : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+          }`}
+        >
+          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 17V7m0 10a2 2 0 01-2 2H5a2 2 0 01-2-2V7a2 2 0 012-2h2a2 2 0 012 2m0 10a2 2 0 002 2h2a2 2 0 002-2M9 7a2 2 0 012-2h2a2 2 0 012 2m0 10V7m0 10a2 2 0 002 2h2a2 2 0 002-2V7a2 2 0 00-2-2h-2a2 2 0 00-2 2" />
+          </svg>
+          Kanban
+        </button>
       </div>
 
       {/* Order type filter tabs */}
@@ -601,42 +618,232 @@ export default function OrdersPage() {
         </button>
       </div>
 
-      {/* Status filter tabs */}
-      <div className="mb-6 flex gap-2 flex-wrap">
-        <button
-          onClick={() => setFilter('all')}
-          className={`px-4 py-2 rounded-lg font-medium transition-colors ${
-            filter === 'all'
-              ? 'bg-blue-600 text-white'
-              : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-          }`}
-        >
-          Все
-        </button>
-        {Object.entries(statusLabels).map(([status, label]) => (
+      {/* Status filter tabs - hidden in Kanban mode since columns already group by status */}
+      {viewMode !== 'kanban' && (
+        <div className="mb-6 flex gap-2 flex-wrap">
           <button
-            key={status}
-            onClick={() => setFilter(Number(status) as OrderStatus)}
+            onClick={() => setFilter('all')}
             className={`px-4 py-2 rounded-lg font-medium transition-colors ${
-              filter === Number(status)
+              filter === 'all'
                 ? 'bg-blue-600 text-white'
                 : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
             }`}
           >
-            {label}
+            Все
           </button>
-        ))}
-        <button
-          onClick={() => setFilter('paid')}
-          className={`px-4 py-2 rounded-lg font-medium transition-colors ${
-            filter === 'paid'
-              ? 'bg-green-600 text-white'
-              : 'bg-green-100 text-green-600 hover:bg-green-200'
-          }`}
-        >
-          Оплачено
-        </button>
-      </div>
+          {Object.entries(statusLabels).map(([status, label]) => (
+            <button
+              key={status}
+              onClick={() => setFilter(Number(status) as OrderStatus)}
+              className={`px-4 py-2 rounded-lg font-medium transition-colors ${
+                filter === Number(status)
+                  ? 'bg-blue-600 text-white'
+                  : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+              }`}
+            >
+              {label}
+            </button>
+          ))}
+          <button
+            onClick={() => setFilter('paid')}
+            className={`px-4 py-2 rounded-lg font-medium transition-colors ${
+              filter === 'paid'
+                ? 'bg-green-600 text-white'
+                : 'bg-green-100 text-green-600 hover:bg-green-200'
+            }`}
+          >
+            Оплачено
+          </button>
+        </div>
+      )}
+
+      {/* Kanban Board View */}
+      {viewMode === 'kanban' && (
+        <KanbanBoard
+          sessions={tableSessions}
+          orderTypeFilter={orderTypeFilter}
+          onConfirmOrder={async (orderId) => {
+            await confirmPendingItems(orderId);
+            await updateOrderStatus(orderId, OrderStatus.Confirmed);
+            fetchTableSessions();
+          }}
+          onMarkOrderPaid={(sessionId, orderId) => {
+            handleMarkOrderPaid(sessionId, orderId);
+          }}
+          onOrderClick={(order, session) => {
+            setSelectedKanbanOrder({ order, session });
+          }}
+        />
+      )}
+
+      {/* Kanban Order Detail Modal */}
+      {selectedKanbanOrder && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-xl w-full max-w-lg max-h-[90vh] overflow-y-auto">
+            <div className="p-6 border-b border-gray-200">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h2 className="text-xl font-bold text-gray-900">
+                    {selectedKanbanOrder.session.tableName || `Стол #${selectedKanbanOrder.session.tableNumber}`}
+                  </h2>
+                  <p className="text-sm text-gray-500">
+                    {selectedKanbanOrder.order.customerName || selectedKanbanOrder.order.guestPhone || 'Гость'}
+                  </p>
+                </div>
+                <button
+                  onClick={() => setSelectedKanbanOrder(null)}
+                  className="text-gray-400 hover:text-gray-600"
+                >
+                  <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
+              </div>
+            </div>
+
+            <div className="p-6">
+              {/* Status badges */}
+              <div className="mb-4 flex items-center gap-2 flex-wrap">
+                <span className={`px-3 py-1 rounded-full text-sm font-medium ${statusColors[selectedKanbanOrder.order.status]}`}>
+                  {statusLabels[selectedKanbanOrder.order.status]}
+                </span>
+                {selectedKanbanOrder.order.isPaid && (
+                  <span className="px-3 py-1 rounded-full text-sm font-medium bg-green-100 text-green-700">
+                    Оплачено
+                  </span>
+                )}
+                {selectedKanbanOrder.order.hasPendingItems && (
+                  <span className="px-3 py-1 rounded-full text-sm font-medium bg-orange-100 text-orange-700 animate-pulse">
+                    Новые блюда
+                  </span>
+                )}
+                {selectedKanbanOrder.order.wantsCashPayment && (
+                  <span className="px-3 py-1 rounded-full text-sm font-medium bg-amber-100 text-amber-700">
+                    Наличными
+                  </span>
+                )}
+              </div>
+
+              {/* Delivery/Takeaway info */}
+              {selectedKanbanOrder.order.orderType === OrderType.Delivery && selectedKanbanOrder.order.deliveryAddress && (
+                <div className="mb-4 p-3 bg-purple-50 rounded-lg">
+                  <div className="flex items-start gap-2">
+                    <svg className="w-5 h-5 text-purple-500 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
+                    </svg>
+                    <div>
+                      <p className="font-medium text-purple-700">Адрес доставки</p>
+                      <p className="text-purple-600">{selectedKanbanOrder.order.deliveryAddress}</p>
+                      {selectedKanbanOrder.order.customerPhone && (
+                        <p className="text-purple-500 text-sm mt-1">{selectedKanbanOrder.order.customerPhone}</p>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Order items */}
+              <h3 className="font-semibold text-gray-900 mb-3">Позиции заказа</h3>
+              <div className="space-y-2 mb-6">
+                {selectedKanbanOrder.order.items.map((item) => (
+                  <div
+                    key={item.id}
+                    className={`flex justify-between items-start p-2 rounded-lg ${
+                      item.status === OrderItemStatus.Cancelled ? 'bg-red-50 opacity-60' :
+                      item.status === OrderItemStatus.Pending ? 'bg-orange-50 border border-orange-200' : 'bg-gray-50'
+                    }`}
+                  >
+                    <div>
+                      <p className={`font-medium ${item.status === OrderItemStatus.Cancelled ? 'text-gray-400 line-through' : 'text-gray-900'}`}>
+                        {item.productName}
+                        {item.status === OrderItemStatus.Pending && (
+                          <span className="ml-2 text-xs text-orange-500">(новое)</span>
+                        )}
+                      </p>
+                      {item.sizeName && <p className="text-sm text-gray-500">{item.sizeName}</p>}
+                      <p className="text-sm text-gray-500">x{item.quantity}</p>
+                    </div>
+                    <span className={`font-medium ${item.status === OrderItemStatus.Cancelled ? 'text-gray-400 line-through' : 'text-gray-900'}`}>
+                      {formatPrice(item.totalPrice)} TJS
+                    </span>
+                  </div>
+                ))}
+              </div>
+
+              {/* Totals */}
+              <div className="border-t border-gray-200 pt-4 space-y-2">
+                <div className="flex justify-between text-gray-600">
+                  <span>Подитог</span>
+                  <span>{formatPrice(selectedKanbanOrder.order.subtotal)} TJS</span>
+                </div>
+                <div className="flex justify-between text-gray-600">
+                  <span>Обслуживание</span>
+                  <span>{formatPrice(selectedKanbanOrder.order.serviceFeeShare)} TJS</span>
+                </div>
+                {selectedKanbanOrder.order.deliveryFee && selectedKanbanOrder.order.deliveryFee > 0 && (
+                  <div className="flex justify-between text-gray-600">
+                    <span>Доставка</span>
+                    <span>{formatPrice(selectedKanbanOrder.order.deliveryFee)} TJS</span>
+                  </div>
+                )}
+                <div className="flex justify-between font-bold text-lg text-gray-900">
+                  <span>Итого</span>
+                  <span>{formatPrice(selectedKanbanOrder.order.total)} TJS</span>
+                </div>
+              </div>
+
+              {/* Actions */}
+              <div className="mt-6 flex gap-3 flex-wrap">
+                {selectedKanbanOrder.order.hasPendingItems && selectedKanbanOrder.order.status !== OrderStatus.Cancelled && (
+                  <Button
+                    onClick={async () => {
+                      await confirmPendingItems(selectedKanbanOrder.order.id);
+                      fetchTableSessions();
+                      setSelectedKanbanOrder(null);
+                    }}
+                  >
+                    Подтвердить блюда
+                  </Button>
+                )}
+                {selectedKanbanOrder.order.status === OrderStatus.Pending && (
+                  <Button
+                    onClick={async () => {
+                      await confirmPendingItems(selectedKanbanOrder.order.id);
+                      await updateOrderStatus(selectedKanbanOrder.order.id, OrderStatus.Confirmed);
+                      fetchTableSessions();
+                      setSelectedKanbanOrder(null);
+                    }}
+                  >
+                    Подтвердить заказ
+                  </Button>
+                )}
+                {!selectedKanbanOrder.order.isPaid && selectedKanbanOrder.order.status !== OrderStatus.Cancelled && (
+                  <Button
+                    variant="secondary"
+                    onClick={() => {
+                      handleMarkOrderPaid(selectedKanbanOrder.session.id, selectedKanbanOrder.order.id);
+                      setSelectedKanbanOrder(null);
+                    }}
+                  >
+                    Отметить оплаченным
+                  </Button>
+                )}
+                {selectedKanbanOrder.order.status !== OrderStatus.Cancelled && (
+                  <Button
+                    variant="danger"
+                    onClick={() => {
+                      handleStatusChange(selectedKanbanOrder.order.id, OrderStatus.Cancelled);
+                      setSelectedKanbanOrder(null);
+                    }}
+                  >
+                    Отменить
+                  </Button>
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Table Sessions Grid - By Tables view */}
       {viewMode === 'tables' && (

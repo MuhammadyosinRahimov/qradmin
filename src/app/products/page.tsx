@@ -23,6 +23,9 @@ export default function ProductsPage() {
     name: '',
     description: '',
     basePrice: 0,
+    discountPrice: null as number | null,
+    weight: null as number | null,
+    ingredients: '',
     categoryId: '',
     menuId: '',
     imageUrl: '',
@@ -81,6 +84,9 @@ export default function ProductsPage() {
       name: '',
       description: '',
       basePrice: 0,
+      discountPrice: null,
+      weight: null,
+      ingredients: '',
       categoryId: categories[0]?.id || '',
       menuId: menus[0]?.id || '',
       imageUrl: '',
@@ -97,6 +103,9 @@ export default function ProductsPage() {
       name: product.name,
       description: product.description || '',
       basePrice: product.basePrice,
+      discountPrice: product.discountPrice || null,
+      weight: product.weight || null,
+      ingredients: product.ingredients || '',
       categoryId: product.categoryId,
       menuId: product.menuId || '',
       imageUrl: product.imageUrl || '',
@@ -251,7 +260,14 @@ export default function ProductsPage() {
                   </div>
                 )}
                 <span className="absolute top-2 right-2 px-2 py-1 bg-blue-600 text-white text-sm font-medium rounded-lg">
-                  {product.basePrice} ₽
+                  {product.discountPrice ? (
+                    <>
+                      <span className="line-through opacity-70 mr-1">{product.basePrice}</span>
+                      {product.discountPrice} ₽
+                    </>
+                  ) : (
+                    <>{product.basePrice} ₽</>
+                  )}
                 </span>
                 {!product.isAvailable && (
                   <span className="absolute top-2 left-2 px-2 py-1 bg-red-500 text-white text-xs font-medium rounded-lg">
@@ -312,7 +328,15 @@ export default function ProductsPage() {
                   <p className="text-sm text-gray-500 line-clamp-2 mb-3">{product.description}</p>
                 )}
 
-                <div className="flex items-center gap-4 text-xs text-gray-500">
+                <div className="flex items-center gap-4 text-xs text-gray-500 flex-wrap">
+                  {product.weight && product.weight > 0 && (
+                    <span className="flex items-center gap-1">
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 6l3 1m0 0l-3 9a5.002 5.002 0 006.001 0M6 7l3 9M6 7l6-2m6 2l3-1m-3 1l-3 9a5.002 5.002 0 006.001 0M18 7l3 9m-3-9l-6-2m0-2v2m0 16V5m0 16H9m3 0h3" />
+                      </svg>
+                      {product.weight} г
+                    </span>
+                  )}
                   {product.calories && product.calories > 0 && (
                     <span className="flex items-center gap-1">
                       <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -373,10 +397,33 @@ export default function ProductsPage() {
               label="Цена (₽)"
               type="number"
               min={0}
-              step={10}
+              step={0.01}
               value={formData.basePrice}
-              onChange={(e) => setFormData({ ...formData, basePrice: parseFloat(e.target.value) })}
+              onChange={(e) => setFormData({ ...formData, basePrice: parseFloat(e.target.value) || 0 })}
               required
+            />
+
+            <Input
+              id="discountPrice"
+              label="Цена со скидкой (₽)"
+              type="number"
+              min={0}
+              step={0.01}
+              value={formData.discountPrice ?? ''}
+              onChange={(e) => setFormData({ ...formData, discountPrice: e.target.value ? parseFloat(e.target.value) : null })}
+              placeholder="Необязательно"
+            />
+          </div>
+
+          <div className="grid grid-cols-2 gap-4">
+            <Input
+              id="weight"
+              label="Вес (г)"
+              type="number"
+              min={0}
+              value={formData.weight ?? ''}
+              onChange={(e) => setFormData({ ...formData, weight: e.target.value ? parseInt(e.target.value) : null })}
+              placeholder="Необязательно"
             />
 
             <Select
@@ -386,6 +433,20 @@ export default function ProductsPage() {
               onChange={(e) => setFormData({ ...formData, categoryId: e.target.value })}
               options={categories.map((c) => ({ value: c.id, label: c.name }))}
               required
+            />
+          </div>
+
+          <div>
+            <label htmlFor="ingredients" className="block text-sm font-medium text-gray-700 mb-1">
+              Состав
+            </label>
+            <textarea
+              id="ingredients"
+              value={formData.ingredients}
+              onChange={(e) => setFormData({ ...formData, ingredients: e.target.value })}
+              placeholder="Томатный соус, моцарелла, базилик..."
+              rows={2}
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
             />
           </div>
 

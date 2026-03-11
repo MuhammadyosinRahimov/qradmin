@@ -132,6 +132,9 @@ export interface Product {
   name: string;
   description?: string;
   basePrice: number;
+  discountPrice?: number;
+  weight?: number;
+  ingredients?: string;
   imageUrl?: string;
   rating?: number;
   calories?: number;
