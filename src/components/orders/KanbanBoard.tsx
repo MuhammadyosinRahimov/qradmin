@@ -161,8 +161,27 @@ export default function KanbanBoard({
           ?.filter((i: { status: number }) => i.status === 1)
           .reduce((sum: number, item: { totalPrice: number }) => sum + item.totalPrice, 0) || 0;
 
-        // Determine column based on status and isPaid
-        if (order.isPaid) {
+        // Check if there are pending items (status = 0)
+        const hasPendingItems = order.items?.some(
+          (item: { status: number }) => item.status === 0
+        ) || false;
+
+        // Determine column based on pending items, then status, then isPaid
+        // If there are pending items - order should be in "Новые" or "Готовятся" (not "Оплачено")
+        if (hasPendingItems) {
+          // Order with new items that need confirmation
+          if (order.status === OrderStatus.Confirmed) {
+            result.confirmed.push(orderWithContext);
+            totals.confirmed += confirmedItemsPrice;
+          } else {
+            result.pending.push(orderWithContext);
+            totals.pending += confirmedItemsPrice;
+          }
+          // Calculate wait time for orders with pending items
+          const waitTime = Math.floor((now.getTime() - new Date(order.createdAt).getTime()) / 60000);
+          totalWaitTime += waitTime;
+          orderCount++;
+        } else if (order.isPaid) {
           result.paid.push(orderWithContext);
           totals.paid += confirmedItemsPrice;
         } else if (order.status === OrderStatus.Confirmed) {
