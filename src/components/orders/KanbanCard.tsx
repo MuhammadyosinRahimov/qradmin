@@ -119,6 +119,19 @@ export default function KanbanCard({
   const displayItems = order.items.filter(i => i.status !== 2).slice(0, 3);
   const remainingCount = order.items.filter(i => i.status !== 2).length - 3;
 
+  // Calculate confirmed price (only items with status = 1 - Active/Confirmed)
+  const confirmedItemsPrice = order.items
+    .filter(i => i.status === 1)
+    .reduce((sum, item) => sum + item.totalPrice, 0);
+
+  // Calculate pending price (items with status = 0 - Pending)
+  const pendingItemsPrice = order.items
+    .filter(i => i.status === 0)
+    .reduce((sum, item) => sum + item.totalPrice, 0);
+
+  // Check if there are pending items
+  const hasPendingPrice = pendingItemsPrice > 0;
+
   // Handle quick confirm
   const handleConfirm = async (e: React.MouseEvent) => {
     e.stopPropagation();
@@ -286,9 +299,16 @@ export default function KanbanCard({
 
         {/* Footer with price */}
         <div className="flex items-center justify-between pt-2 border-t border-gray-100">
-          <span className="text-base font-bold text-gray-900">
-            {formatPrice(order.total)} TJS
-          </span>
+          <div className="flex flex-col">
+            <span className="text-base font-bold text-gray-900">
+              {formatPrice(confirmedItemsPrice)} TJS
+            </span>
+            {hasPendingPrice && (
+              <span className="text-xs text-orange-500 font-medium">
+                +{formatPrice(pendingItemsPrice)} TJS (ожидает)
+              </span>
+            )}
+          </div>
         </div>
 
         {/* Quick action buttons */}

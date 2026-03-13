@@ -156,20 +156,25 @@ export default function KanbanBoard({
           return; // Don't add to totalAmount
         }
 
+        // Calculate confirmed items price only (status = 1)
+        const confirmedItemsPrice = order.items
+          ?.filter((i: { status: number }) => i.status === 1)
+          .reduce((sum: number, item: { totalPrice: number }) => sum + item.totalPrice, 0) || 0;
+
         // Determine column based on status and isPaid
         if (order.isPaid) {
           result.paid.push(orderWithContext);
-          totals.paid += order.total;
+          totals.paid += confirmedItemsPrice;
         } else if (order.status === OrderStatus.Confirmed) {
           result.confirmed.push(orderWithContext);
-          totals.confirmed += order.total;
+          totals.confirmed += confirmedItemsPrice;
           // Calculate wait time for unpaid orders
           const waitTime = Math.floor((now.getTime() - new Date(order.createdAt).getTime()) / 60000);
           totalWaitTime += waitTime;
           orderCount++;
         } else if (order.status === OrderStatus.Pending) {
           result.pending.push(orderWithContext);
-          totals.pending += order.total;
+          totals.pending += confirmedItemsPrice;
           // Calculate wait time for pending orders
           const waitTime = Math.floor((now.getTime() - new Date(order.createdAt).getTime()) / 60000);
           totalWaitTime += waitTime;
@@ -177,7 +182,7 @@ export default function KanbanBoard({
         }
 
         totalOrders++;
-        totalAmount += order.total;
+        totalAmount += confirmedItemsPrice;
       });
     });
 

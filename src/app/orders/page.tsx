@@ -198,14 +198,16 @@ export default function OrdersPage() {
       const restaurantId = getCurrentRestaurantId();
       // Use provided status or determine from current filter
       const status = sessionStatus ?? getSessionStatusFromFilter(filter);
+      console.log('[Orders] Fetching sessions:', { restaurantId, status, isSuperAdmin, selectedRestaurantId });
       const response = await getTableSessions(restaurantId || undefined, status);
+      console.log('[Orders] Sessions received:', response.data.length, 'sessions');
       setTableSessions(response.data);
     } catch (error) {
       console.error('Error fetching table sessions:', error);
     } finally {
       setLoading(false);
     }
-  }, [getCurrentRestaurantId, filter, getSessionStatusFromFilter]);
+  }, [getCurrentRestaurantId, filter, getSessionStatusFromFilter, isSuperAdmin, selectedRestaurantId]);
 
   // Handle mark session as paid
   const handleMarkSessionPaid = async (sessionId: string) => {
@@ -317,8 +319,18 @@ export default function OrdersPage() {
       .withAutomaticReconnect()
       .build();
 
-    connection.on('NewOrder', () => {
+    connection.on('NewOrder', (orderData) => {
       // Refresh sessions to show new order
+      console.log('[SignalR] NewOrder received:', orderData);
+      const orderRestaurantId = orderData?.restaurantId;
+      const adminRestaurantId = getCurrentRestaurantId();
+      console.log('[SignalR] Order restaurant ID:', orderRestaurantId);
+      console.log('[SignalR] Admin restaurant ID:', adminRestaurantId);
+
+      if (orderRestaurantId && adminRestaurantId && orderRestaurantId !== adminRestaurantId) {
+        console.warn('[SignalR] Restaurant ID mismatch! Order from different restaurant.');
+      }
+
       fetchTableSessions();
       setNewOrdersCount((prev) => prev + 1);
       playNotificationSound();
@@ -357,10 +369,12 @@ export default function OrdersPage() {
     connection
       .start()
       .then(() => {
-        console.log('SignalR connected');
-        connection.invoke('JoinAdminGroup');
+        console.log('[SignalR] Connected successfully');
+        connection.invoke('JoinAdminGroup').then(() => {
+          console.log('[SignalR] Joined Admins group');
+        });
       })
-      .catch((err) => console.error('SignalR error:', err));
+      .catch((err) => console.error('[SignalR] Connection error:', err));
 
     connectionRef.current = connection;
 
