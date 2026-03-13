@@ -670,6 +670,10 @@ export default function OrdersPage() {
           onMarkOrderPaid={(sessionId, orderId) => {
             handleMarkOrderPaid(sessionId, orderId);
           }}
+          onCancelOrder={async (orderId) => {
+            await updateOrderStatus(orderId, OrderStatus.Cancelled);
+            fetchTableSessions();
+          }}
           onOrderClick={(order, session) => {
             setSelectedKanbanOrder({ order, session });
           }}

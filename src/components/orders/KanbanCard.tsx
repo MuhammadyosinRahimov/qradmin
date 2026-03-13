@@ -14,6 +14,7 @@ interface KanbanCardProps {
   onClick: () => void;
   onConfirmOrder?: (orderId: string) => Promise<void>;
   onMarkOrderPaid?: (sessionId: string, orderId: string) => void;
+  onCancelOrder?: (orderId: string) => Promise<void>;
 }
 
 const orderTypeConfig = {
@@ -61,8 +62,12 @@ export default function KanbanCard({
   onClick,
   onConfirmOrder,
   onMarkOrderPaid,
+  onCancelOrder,
 }: KanbanCardProps) {
   const [isProcessing, setIsProcessing] = useState(false);
+
+  // Check if the order is cancelled
+  const isCancelled = order.status === OrderStatus.Cancelled;
 
   const {
     attributes,
@@ -73,6 +78,7 @@ export default function KanbanCard({
     isDragging,
   } = useSortable({
     id: order.id,
+    disabled: isCancelled, // Disable drag for cancelled orders
     data: {
       order,
       sessionId,
@@ -134,9 +140,23 @@ export default function KanbanCard({
     onMarkOrderPaid(sessionId, order.id);
   };
 
+  // Handle quick cancel
+  const handleCancel = async (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (!onCancelOrder || isProcessing) return;
+
+    setIsProcessing(true);
+    try {
+      await onCancelOrder(order.id);
+    } finally {
+      setIsProcessing(false);
+    }
+  };
+
   // Determine which quick actions to show
   const showConfirmButton = columnId === 'pending' && order.status === OrderStatus.Pending;
   const showPayButton = columnId === 'confirmed' && !order.isPaid && order.status === OrderStatus.Confirmed;
+  const showCancelButton = !isCancelled && (columnId === 'pending' || columnId === 'confirmed');
 
   return (
     <div
@@ -146,16 +166,28 @@ export default function KanbanCard({
       {...listeners}
       onClick={onClick}
       className={`
-        bg-white rounded-xl shadow-sm border-l-4 ${typeConfig.borderColor}
-        cursor-grab active:cursor-grabbing
-        transition-all duration-200 hover:shadow-lg ${typeConfig.bgGlow}
+        bg-white rounded-xl shadow-sm border-l-4
+        ${isCancelled ? 'border-l-red-400 opacity-75 grayscale-[30%]' : typeConfig.borderColor}
+        ${isCancelled ? 'cursor-not-allowed' : 'cursor-grab active:cursor-grabbing'}
+        transition-all duration-200
+        ${isCancelled ? '' : `hover:shadow-lg ${typeConfig.bgGlow}`}
         ${isDragging ? 'opacity-60 shadow-2xl scale-105 z-50 rotate-2' : ''}
-        ${isUrgent ? 'ring-2 ring-red-400 animate-pulse' : ''}
-        ${isWarning ? 'ring-2 ring-yellow-400' : ''}
+        ${!isCancelled && isUrgent ? 'ring-2 ring-red-400 animate-pulse' : ''}
+        ${!isCancelled && isWarning ? 'ring-2 ring-yellow-400' : ''}
+        relative
       `}
     >
+      {/* Cancelled badge */}
+      {isCancelled && (
+        <div className="absolute top-2 right-2 z-10">
+          <span className="px-2 py-1 bg-red-100 text-red-700 text-xs font-semibold rounded-full shadow-sm">
+            Отменён
+          </span>
+        </div>
+      )}
+
       {/* Urgency indicator bar */}
-      {(isUrgent || isWarning) && (
+      {!isCancelled && (isUrgent || isWarning) && (
         <div className={`h-1.5 rounded-t-lg ${isUrgent ? 'bg-gradient-to-r from-red-500 to-red-600' : 'bg-gradient-to-r from-yellow-400 to-yellow-500'}`} />
       )}
 
@@ -260,7 +292,7 @@ export default function KanbanCard({
         </div>
 
         {/* Quick action buttons */}
-        {(showConfirmButton || showPayButton) && (
+        {(showConfirmButton || showPayButton || showCancelButton) && (
           <div className="flex gap-2 mt-3 pt-2 border-t border-gray-100">
             {showConfirmButton && (
               <button
@@ -293,6 +325,17 @@ export default function KanbanCard({
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z" />
                 </svg>
                 Оплачено
+              </button>
+            )}
+            {showCancelButton && (
+              <button
+                onClick={handleCancel}
+                disabled={isProcessing}
+                className="px-3 py-2 bg-gradient-to-r from-red-500 to-rose-500 text-white text-xs font-semibold rounded-lg hover:from-red-600 hover:to-rose-600 transition-all duration-200 flex items-center justify-center gap-1.5 disabled:opacity-50 shadow-sm hover:shadow"
+              >
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
               </button>
             )}
           </div>

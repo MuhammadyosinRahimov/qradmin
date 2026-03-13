@@ -18,9 +18,11 @@ interface KanbanColumnProps {
   count: number;
   totalAmount: number;
   headerGradient: string;
+  isCancelledColumn?: boolean;
   onOrderClick: (order: SessionOrder, sessionId: string) => void;
   onConfirmOrder?: (orderId: string) => Promise<void>;
   onMarkOrderPaid?: (sessionId: string, orderId: string) => void;
+  onCancelOrder?: (orderId: string) => Promise<void>;
 }
 
 const formatPrice = (price: number) => {
@@ -35,9 +37,11 @@ export default function KanbanColumn({
   count,
   totalAmount,
   headerGradient,
+  isCancelledColumn = false,
   onOrderClick,
   onConfirmOrder,
   onMarkOrderPaid,
+  onCancelOrder,
 }: KanbanColumnProps) {
   const { isOver, setNodeRef } = useDroppable({
     id,
@@ -70,9 +74,13 @@ export default function KanbanColumn({
           flex-1 p-3 space-y-3 overflow-y-auto
           rounded-b-xl border-2 border-t-0
           transition-all duration-300 ease-in-out
-          ${isOver
-            ? 'border-blue-400 bg-blue-50 shadow-inner scale-[1.02]'
-            : 'border-gray-200 bg-gray-50/80'
+          ${isOver && isCancelledColumn
+            ? 'border-red-400 bg-red-50 shadow-inner scale-[1.02]'
+            : isOver
+              ? 'border-blue-400 bg-blue-50 shadow-inner scale-[1.02]'
+              : isCancelledColumn
+                ? 'border-red-200 bg-red-50/50'
+                : 'border-gray-200 bg-gray-50/80'
           }
         `}
         style={{ minHeight: '400px', maxHeight: 'calc(100vh - 400px)' }}
@@ -87,11 +95,11 @@ export default function KanbanColumn({
               text-gray-400 transition-all duration-300
               ${isOver ? 'scale-105' : ''}
             `}>
-              <svg className={`w-14 h-14 mb-2 transition-colors ${isOver ? 'text-blue-400' : 'opacity-40'}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <svg className={`w-14 h-14 mb-2 transition-colors ${isOver && isCancelledColumn ? 'text-red-400' : isOver ? 'text-blue-400' : 'opacity-40'}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4" />
               </svg>
-              <p className={`text-sm font-medium ${isOver ? 'text-blue-500' : ''}`}>
-                {isOver ? 'Отпустите здесь' : 'Нет заказов'}
+              <p className={`text-sm font-medium ${isOver && isCancelledColumn ? 'text-red-500' : isOver ? 'text-blue-500' : ''}`}>
+                {isOver ? 'Отпустите здесь' : isCancelledColumn ? 'Нет отменённых' : 'Нет заказов'}
               </p>
             </div>
           ) : (
@@ -106,6 +114,7 @@ export default function KanbanColumn({
                 onClick={() => onOrderClick(item.order, item.sessionId)}
                 onConfirmOrder={onConfirmOrder}
                 onMarkOrderPaid={onMarkOrderPaid}
+                onCancelOrder={onCancelOrder}
               />
             ))
           )}
@@ -113,12 +122,16 @@ export default function KanbanColumn({
 
         {/* Drop indicator */}
         {isOver && orders.length > 0 && (
-          <div className="h-20 border-2 border-dashed border-blue-400 rounded-xl bg-blue-100/60 flex items-center justify-center animate-pulse">
-            <div className="flex items-center gap-2 text-blue-600">
+          <div className={`h-20 border-2 border-dashed rounded-xl flex items-center justify-center animate-pulse ${
+            isCancelledColumn
+              ? 'border-red-400 bg-red-100/60'
+              : 'border-blue-400 bg-blue-100/60'
+          }`}>
+            <div className={`flex items-center gap-2 ${isCancelledColumn ? 'text-red-600' : 'text-blue-600'}`}>
               <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 14l-7 7m0 0l-7-7m7 7V3" />
               </svg>
-              <span className="text-sm font-semibold">Отпустите здесь</span>
+              <span className="text-sm font-semibold">{isCancelledColumn ? 'Отменить заказ' : 'Отпустите здесь'}</span>
             </div>
           </div>
         )}

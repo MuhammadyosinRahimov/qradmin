@@ -22,6 +22,7 @@ interface KanbanBoardProps {
   orderTypeFilter: OrderType | 'all';
   onConfirmOrder: (orderId: string) => Promise<void>;
   onMarkOrderPaid: (sessionId: string, orderId: string) => void;
+  onCancelOrder: (orderId: string) => Promise<void>;
   onOrderClick: (order: SessionOrder, session: TableSession) => void;
 }
 
@@ -63,6 +64,18 @@ const columns = [
     ),
     headerGradient: 'bg-gradient-to-r from-green-500 to-emerald-500 text-white',
   },
+  {
+    id: 'cancelled',
+    title: 'Отмена',
+    status: OrderStatus.Cancelled,
+    isPaid: false,
+    icon: (
+      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+      </svg>
+    ),
+    headerGradient: 'bg-gradient-to-r from-red-500 to-rose-600 text-white',
+  },
 ];
 
 // Format price helper
@@ -82,6 +95,7 @@ export default function KanbanBoard({
   orderTypeFilter,
   onConfirmOrder,
   onMarkOrderPaid,
+  onCancelOrder,
   onOrderClick,
 }: KanbanBoardProps) {
   const [activeOrder, setActiveOrder] = useState<OrderWithContext | null>(null);
@@ -104,11 +118,13 @@ export default function KanbanBoard({
       pending: [],
       confirmed: [],
       paid: [],
+      cancelled: [],
     };
     const totals: Record<string, number> = {
       pending: 0,
       confirmed: 0,
       paid: 0,
+      cancelled: 0,
     };
 
     let totalOrders = 0;
@@ -119,9 +135,6 @@ export default function KanbanBoard({
 
     sessions.forEach((session) => {
       session.orders.forEach((order) => {
-        // Skip cancelled orders
-        if (order.status === OrderStatus.Cancelled) return;
-
         // Apply order type filter
         if (orderTypeFilter !== 'all') {
           const orderType = order.orderType ?? OrderType.DineIn;
@@ -134,6 +147,14 @@ export default function KanbanBoard({
           tableNumber: session.tableNumber,
           tableName: session.tableName,
         };
+
+        // Handle cancelled orders
+        if (order.status === OrderStatus.Cancelled) {
+          result.cancelled.push(orderWithContext);
+          totals.cancelled += order.total;
+          totalOrders++;
+          return; // Don't add to totalAmount
+        }
 
         // Determine column based on status and isPaid
         if (order.isPaid) {
@@ -171,6 +192,9 @@ export default function KanbanBoard({
       new Date(b.order.paidAt || b.order.createdAt).getTime() -
       new Date(a.order.paidAt || a.order.createdAt).getTime()
     );
+    result.cancelled.sort((a, b) =>
+      new Date(b.order.createdAt).getTime() - new Date(a.order.createdAt).getTime()
+    );
 
     return {
       ordersByColumn: result,
@@ -182,6 +206,7 @@ export default function KanbanBoard({
         pendingCount: result.pending.length,
         confirmedCount: result.confirmed.length,
         paidCount: result.paid.length,
+        cancelledCount: result.cancelled.length,
       },
     };
   }, [sessions, orderTypeFilter]);
@@ -226,9 +251,10 @@ export default function KanbanBoard({
 
     // Validate transition
     const validTransitions: Record<string, string[]> = {
-      pending: ['confirmed'],
-      confirmed: ['paid'],
+      pending: ['confirmed', 'cancelled'],
+      confirmed: ['paid', 'cancelled'],
       paid: [], // No transitions from paid
+      cancelled: [], // No transitions from cancelled
     };
 
     if (!validTransitions[currentColumn]?.includes(targetColumn)) {
@@ -247,6 +273,10 @@ export default function KanbanBoard({
       } else if (targetColumn === 'paid' && currentColumn === 'confirmed') {
         // Confirmed -> Paid: mark as paid
         onMarkOrderPaid(orderContext.sessionId, orderId);
+      } else if (targetColumn === 'cancelled') {
+        // Any -> Cancelled: cancel the order
+        await onCancelOrder(orderId);
+        showToast('Заказ отменён', 'success');
       }
     } catch (error) {
       console.error('Error processing order transition:', error);
@@ -254,7 +284,7 @@ export default function KanbanBoard({
     } finally {
       setIsProcessing(false);
     }
-  }, [ordersByColumn, isProcessing, onConfirmOrder, onMarkOrderPaid]);
+  }, [ordersByColumn, isProcessing, onConfirmOrder, onMarkOrderPaid, onCancelOrder]);
 
   const handleOrderClick = useCallback((order: SessionOrder, sessionId: string) => {
     const session = sessions.find((s) => s.id === sessionId);
@@ -321,6 +351,11 @@ export default function KanbanBoard({
             <span className="px-2 py-1 bg-green-100 text-green-700 rounded-full font-medium">
               {stats.paidCount} оплачено
             </span>
+            {stats.cancelledCount > 0 && (
+              <span className="px-2 py-1 bg-red-100 text-red-700 rounded-full font-medium">
+                {stats.cancelledCount} отменено
+              </span>
+            )}
           </div>
         </div>
       </div>
@@ -355,9 +390,11 @@ export default function KanbanBoard({
               count={ordersByColumn[column.id]?.length || 0}
               totalAmount={columnTotals[column.id] || 0}
               headerGradient={column.headerGradient}
+              isCancelledColumn={column.id === 'cancelled'}
               onOrderClick={handleOrderClick}
               onConfirmOrder={onConfirmOrder}
               onMarkOrderPaid={onMarkOrderPaid}
+              onCancelOrder={onCancelOrder}
             />
           ))}
         </div>
