@@ -47,7 +47,7 @@ export default function OrdersPage() {
   const isSuperAdmin = admin?.role === 'Admin';
 
   // View mode: 'orders', 'tables', or 'kanban'
-  const [viewMode, setViewMode] = useState<'orders' | 'tables' | 'kanban'>('orders');
+  const [viewMode, setViewMode] = useState<'orders' | 'tables' | 'kanban'>('kanban');
   const [tableSessions, setTableSessions] = useState<TableSession[]>([]);
   const [selectedSession, setSelectedSession] = useState<TableSession | null>(null);
   const [markingPaid, setMarkingPaid] = useState<string | null>(null);

@@ -354,13 +354,13 @@ export default function CategoriesPage() {
                   key={icon}
                   type="button"
                   onClick={() => setFormData({ ...formData, icon })}
-                  className={`p-3 rounded-lg border-2 transition-colors ${
+                  className={`p-3 rounded-lg border-2 transition-colors flex items-center justify-center ${
                     formData.icon === icon
                       ? 'border-blue-500 bg-blue-50'
                       : 'border-gray-200 hover:border-gray-300'
                   }`}
                 >
-                  <span className="text-xl">{icon}</span>
+                  <span className="material-icons text-xl">{icon}</span>
                 </button>
               ))}
             </div>
