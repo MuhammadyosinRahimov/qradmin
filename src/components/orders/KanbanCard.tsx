@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import { SessionOrder, OrderType, OrderStatus } from '@/types';
@@ -21,28 +21,18 @@ const orderTypeConfig = {
   [OrderType.DineIn]: {
     label: 'Зал',
     color: 'text-slate-600',
-    bg: 'bg-slate-50',
-    border: 'border-slate-200',
+    bg: 'bg-slate-100',
   },
   [OrderType.Delivery]: {
     label: 'Доставка',
     color: 'text-violet-600',
     bg: 'bg-violet-50',
-    border: 'border-violet-200',
   },
   [OrderType.Takeaway]: {
     label: 'Самовывоз',
     color: 'text-cyan-600',
     bg: 'bg-cyan-50',
-    border: 'border-cyan-200',
   },
-};
-
-const statusColors = {
-  pending: 'border-l-amber-500',
-  confirmed: 'border-l-blue-500',
-  paid: 'border-l-emerald-500',
-  cancelled: 'border-l-red-400',
 };
 
 export default function KanbanCard({
@@ -86,14 +76,18 @@ export default function KanbanCard({
   const orderType = order.orderType ?? OrderType.DineIn;
   const typeConfig = orderTypeConfig[orderType];
 
-  // Calculate waiting time
-  const createdAt = new Date(order.createdAt);
-  const now = new Date();
-  const waitingMinutes = Math.floor((now.getTime() - createdAt.getTime()) / 60000);
-
-  // Urgency levels
-  const isUrgent = waitingMinutes > 15;
-  const isWarning = waitingMinutes >= 8 && waitingMinutes <= 15;
+  // Calculate waiting time and urgency
+  const { waitingMinutes, isUrgent, isWarning, isNew } = useMemo(() => {
+    const createdAt = new Date(order.createdAt);
+    const now = new Date();
+    const minutes = Math.floor((now.getTime() - createdAt.getTime()) / 60000);
+    return {
+      waitingMinutes: minutes,
+      isUrgent: minutes > 10,
+      isWarning: minutes >= 5 && minutes <= 10,
+      isNew: minutes < 2,
+    };
+  }, [order.createdAt]);
 
   const formatTime = (dateString: string) => {
     return new Date(dateString).toLocaleTimeString('ru-RU', {
@@ -106,22 +100,40 @@ export default function KanbanCard({
     return new Intl.NumberFormat('ru-RU').format(price);
   };
 
-  // Get all non-cancelled items
-  const activeItems = order.items.filter(i => i.status !== 2);
-  const displayItems = activeItems.slice(0, 4);
-  const remainingCount = activeItems.length - 4;
+  // Get items by status
+  const { activeItems, pendingItems, confirmedItems, displayItems, remainingCount } = useMemo(() => {
+    const active = order.items.filter(i => i.status !== 2);
+    const pending = order.items.filter(i => i.status === 0);
+    const confirmed = order.items.filter(i => i.status === 1);
+    const display = active.slice(0, 3);
+    const remaining = active.length - 3;
+    return {
+      activeItems: active,
+      pendingItems: pending,
+      confirmedItems: confirmed,
+      displayItems: display,
+      remainingCount: remaining > 0 ? remaining : 0,
+    };
+  }, [order.items]);
 
   // Calculate prices
-  const confirmedItemsPrice = order.items
-    .filter(i => i.status === 1)
-    .reduce((sum, item) => sum + item.totalPrice, 0);
+  const { confirmedItemsPrice, pendingItemsPrice, totalPrice, hasPendingPrice } = useMemo(() => {
+    const confirmed = order.items
+      .filter(i => i.status === 1)
+      .reduce((sum, item) => sum + item.totalPrice, 0);
+    const pending = order.items
+      .filter(i => i.status === 0)
+      .reduce((sum, item) => sum + item.totalPrice, 0);
+    return {
+      confirmedItemsPrice: confirmed,
+      pendingItemsPrice: pending,
+      totalPrice: confirmed + pending,
+      hasPendingPrice: pending > 0,
+    };
+  }, [order.items]);
 
-  const pendingItemsPrice = order.items
-    .filter(i => i.status === 0)
-    .reduce((sum, item) => sum + item.totalPrice, 0);
-
-  const hasPendingPrice = pendingItemsPrice > 0;
-  const totalPrice = confirmedItemsPrice + pendingItemsPrice;
+  // Extra order indicator
+  const hasExtraItems = pendingItems.length > 0 && confirmedItems.length > 0;
 
   // Handlers
   const handleConfirm = async (e: React.MouseEvent) => {
@@ -157,13 +169,22 @@ export default function KanbanCard({
   const showPayButton = columnId === 'confirmed' && !order.isPaid && order.status === OrderStatus.Confirmed;
   const showCancelButton = !isCancelled && (columnId === 'pending' || columnId === 'confirmed');
 
-  const borderColor = isCancelled
-    ? statusColors.cancelled
-    : columnId === 'paid'
-      ? statusColors.paid
-      : columnId === 'confirmed'
-        ? statusColors.confirmed
-        : statusColors.pending;
+  // Border color based on status
+  const getBorderColor = () => {
+    if (isCancelled) return 'border-l-red-400';
+    if (columnId === 'paid') return 'border-l-emerald-500';
+    if (columnId === 'confirmed') return 'border-l-blue-500';
+    return 'border-l-amber-500';
+  };
+
+  // Urgency classes
+  const getUrgencyClasses = () => {
+    if (isCancelled || columnId === 'paid') return '';
+    if (isUrgent) return 'urgency-critical animate-pulse-urgent';
+    if (isWarning) return 'urgency-warning animate-pulse-border';
+    if (isNew && columnId === 'pending') return 'animate-pulse-border';
+    return '';
+  };
 
   return (
     <div
@@ -173,115 +194,145 @@ export default function KanbanCard({
       {...listeners}
       onClick={onClick}
       className={`
-        bg-white border border-slate-200 border-l-[3px] ${borderColor}
-        ${isCancelled ? 'opacity-60' : 'hover:border-slate-300 hover:shadow-sm'}
-        ${isCancelled ? 'cursor-not-allowed' : 'cursor-pointer'}
-        transition-all duration-150
+        bg-white border border-slate-200 border-l-[3px] ${getBorderColor()}
+        rounded card-interactive
+        ${isCancelled ? 'opacity-60 cursor-not-allowed' : 'cursor-pointer'}
         ${isDragging ? 'shadow-lg scale-[1.02] z-50 ring-2 ring-blue-400' : ''}
-        ${!isCancelled && isUrgent ? 'bg-red-50/50' : ''}
-        ${!isCancelled && isWarning ? 'bg-amber-50/30' : ''}
+        ${getUrgencyClasses()}
       `}
     >
-      {/* Header row - compact */}
-      <div className="px-3 py-2 border-b border-slate-100 flex items-center justify-between">
+      {/* Header row - table, timer, time */}
+      <div className="px-2.5 py-2 border-b border-slate-100 flex items-center justify-between">
         <div className="flex items-center gap-2">
-          <span className="font-semibold text-slate-900 text-sm">
+          <span className="font-semibold text-slate-900 text-sm tabular-nums">
             #{tableNumber}
           </span>
           {tableName && (
-            <span className="text-xs text-slate-500">{tableName}</span>
+            <span className="text-xs text-slate-500 truncate max-w-[80px]">{tableName}</span>
           )}
-          <span className={`text-[10px] px-1.5 py-0.5 font-medium ${typeConfig.bg} ${typeConfig.color} ${typeConfig.border} border`}>
-            {typeConfig.label}
-          </span>
         </div>
         <div className="flex items-center gap-2">
-          {order.hasPendingItems && (
-            <span className="w-1.5 h-1.5 bg-amber-500 rounded-full" title="Новые блюда" />
+          {/* Extra order indicator */}
+          {hasExtraItems && (
+            <span className="flex items-center justify-center w-5 h-5 text-[10px] font-bold bg-amber-100 text-amber-700 rounded-full">
+              +{pendingItems.length}
+            </span>
           )}
-          <span className={`text-xs font-medium tabular-nums ${
+          {/* Timer */}
+          <span className={`text-xs font-semibold tabular-nums ${
             isUrgent ? 'text-red-600' : isWarning ? 'text-amber-600' : 'text-slate-400'
           }`}>
             {waitingMinutes}м
           </span>
+          {/* Time */}
           <span className="text-[10px] text-slate-400 tabular-nums">
             {formatTime(order.createdAt)}
           </span>
         </div>
       </div>
 
+      {/* Type badge and indicators row */}
+      <div className="px-2.5 py-1.5 flex items-center gap-1.5 border-b border-slate-50">
+        <span className={`text-[10px] px-1.5 py-0.5 font-medium rounded ${typeConfig.bg} ${typeConfig.color}`}>
+          {typeConfig.label}
+        </span>
+        {hasExtraItems && (
+          <span className="text-[10px] px-1.5 py-0.5 font-medium bg-amber-50 text-amber-700 rounded">
+            Доп. заказ
+          </span>
+        )}
+        {order.wantsCashPayment && (
+          <span className="text-[10px] px-1.5 py-0.5 font-medium bg-slate-100 text-slate-600 rounded">
+            Наличные
+          </span>
+        )}
+      </div>
+
       {/* Cancelled badge */}
       {isCancelled && (
-        <div className="px-3 py-1 bg-red-50 border-b border-red-100">
-          <span className="text-[10px] font-medium text-red-600 uppercase tracking-wide">
+        <div className="px-2.5 py-1.5 bg-red-50 border-b border-red-100">
+          <span className="text-[10px] font-semibold text-red-600 uppercase tracking-wide">
             Отменён
           </span>
         </div>
       )}
 
-      {/* Delivery/Takeaway info - compact */}
+      {/* Delivery/Takeaway info */}
       {orderType === OrderType.Delivery && order.deliveryAddress && (
-        <div className="px-3 py-1.5 bg-violet-50/50 border-b border-violet-100 text-[11px] text-violet-700 truncate">
+        <div className="px-2.5 py-1.5 bg-violet-50/50 border-b border-violet-100 text-[10px] text-violet-700 truncate">
           <span className="font-medium">Адрес:</span> {order.deliveryAddress}
         </div>
       )}
 
       {orderType === OrderType.Takeaway && order.customerName && (
-        <div className="px-3 py-1.5 bg-cyan-50/50 border-b border-cyan-100 text-[11px] text-cyan-700">
+        <div className="px-2.5 py-1.5 bg-cyan-50/50 border-b border-cyan-100 text-[10px] text-cyan-700">
           <span className="font-medium">{order.customerName}</span>
           {order.customerPhone && <span className="text-cyan-500 ml-1">({order.customerPhone})</span>}
         </div>
       )}
 
-      {/* Items list - high density */}
-      <div className="px-3 py-2">
-        <div className="space-y-0.5">
-          {displayItems.map((item) => (
-            <div key={item.id} className="flex justify-between text-[11px] leading-tight">
-              <span className={`truncate flex-1 mr-2 ${item.status === 0 ? 'text-amber-700 font-medium' : 'text-slate-600'}`}>
-                {item.productName}
-                {item.note && <span className="text-slate-400 ml-1" title={item.note}>*</span>}
-              </span>
-              <span className="text-slate-500 tabular-nums">×{item.quantity}</span>
-            </div>
-          ))}
+      {/* Items list with checkboxes */}
+      <div className="px-2.5 py-2">
+        <div className="space-y-1">
+          {displayItems.map((item) => {
+            const isPending = item.status === 0;
+            const isConfirmed = item.status === 1;
+            return (
+              <div key={item.id} className="flex items-center gap-2 text-[11px]">
+                {/* Checkbox indicator */}
+                <span className={`flex-shrink-0 w-3.5 h-3.5 rounded border flex items-center justify-center ${
+                  isConfirmed
+                    ? 'bg-emerald-500 border-emerald-500 text-white'
+                    : 'border-slate-300 bg-white'
+                }`}>
+                  {isConfirmed && (
+                    <svg className="w-2.5 h-2.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
+                    </svg>
+                  )}
+                </span>
+                {/* Item name */}
+                <span className={`flex-1 truncate ${isPending ? 'text-amber-700 font-medium' : 'text-slate-600'}`}>
+                  {item.productName}
+                  {item.note && <span className="text-slate-400 ml-0.5" title={item.note}>*</span>}
+                </span>
+                {/* Quantity */}
+                <span className="text-slate-400 tabular-nums flex-shrink-0">×{item.quantity}</span>
+              </div>
+            );
+          })}
           {remainingCount > 0 && (
-            <div className="text-[10px] text-slate-400">
-              +{remainingCount} ещё
+            <div className="text-[10px] text-slate-400 pl-5">
+              +{remainingCount} ещё...
             </div>
           )}
         </div>
       </div>
 
       {/* Footer - price and actions */}
-      <div className="px-3 py-2 border-t border-slate-100 bg-slate-50/50">
+      <div className="px-2.5 py-2 border-t border-slate-100 bg-slate-50/50">
         <div className="flex items-center justify-between">
-          <div className="flex items-baseline gap-1.5">
+          <div className="flex items-baseline gap-1">
             <span className="text-sm font-semibold text-slate-900 tabular-nums">
               {formatPrice(totalPrice)}
             </span>
             <span className="text-[10px] text-slate-400">TJS</span>
-            {hasPendingPrice && (
-              <span className="text-[10px] text-amber-600 font-medium">
-                (+{formatPrice(pendingItemsPrice)} ожид.)
-              </span>
-            )}
           </div>
-          {order.wantsCashPayment && (
-            <span className="text-[10px] px-1.5 py-0.5 bg-amber-100 text-amber-700 font-medium">
-              Наличные
+          {hasPendingPrice && (
+            <span className="text-[10px] text-amber-600 font-medium tabular-nums">
+              +{formatPrice(pendingItemsPrice)} ожид.
             </span>
           )}
         </div>
 
-        {/* Quick actions - minimal */}
+        {/* Quick actions */}
         {(showConfirmButton || showPayButton || showCancelButton) && (
           <div className="flex gap-1.5 mt-2">
             {showConfirmButton && (
               <button
                 onClick={handleConfirm}
                 disabled={isProcessing}
-                className="flex-1 px-2 py-1.5 bg-blue-600 text-white text-[11px] font-medium hover:bg-blue-700 transition-colors disabled:opacity-50 flex items-center justify-center gap-1"
+                className="flex-1 px-2 py-1.5 bg-blue-600 text-white text-[11px] font-medium rounded hover:bg-blue-700 transition-colors duration-150 disabled:opacity-50 flex items-center justify-center gap-1"
               >
                 {isProcessing ? (
                   <span className="w-3 h-3 border-2 border-white/30 border-t-white rounded-full animate-spin" />
@@ -299,7 +350,7 @@ export default function KanbanCard({
               <button
                 onClick={handleMarkPaid}
                 disabled={isProcessing}
-                className="flex-1 px-2 py-1.5 bg-emerald-600 text-white text-[11px] font-medium hover:bg-emerald-700 transition-colors disabled:opacity-50 flex items-center justify-center gap-1"
+                className="flex-1 px-2 py-1.5 bg-emerald-600 text-white text-[11px] font-medium rounded hover:bg-emerald-700 transition-colors duration-150 disabled:opacity-50 flex items-center justify-center gap-1"
               >
                 <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z" />
@@ -311,7 +362,7 @@ export default function KanbanCard({
               <button
                 onClick={handleCancel}
                 disabled={isProcessing}
-                className="px-2 py-1.5 bg-slate-100 text-slate-600 text-[11px] font-medium hover:bg-red-50 hover:text-red-600 transition-colors disabled:opacity-50"
+                className="px-2 py-1.5 bg-slate-100 text-slate-500 text-[11px] font-medium rounded hover:bg-red-50 hover:text-red-600 transition-colors duration-150 disabled:opacity-50"
                 title="Отменить"
               >
                 <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">

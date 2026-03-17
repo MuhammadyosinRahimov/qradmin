@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useMemo, useCallback } from 'react';
+import { useState, useMemo, useCallback, useEffect, useRef } from 'react';
 import {
   DndContext,
   DragOverlay,
@@ -26,7 +26,7 @@ interface KanbanBoardProps {
   onOrderClick: (order: SessionOrder, session: TableSession) => void;
 }
 
-// Column configuration - professional enterprise style
+// Column configuration
 const columns = [
   {
     id: 'pending',
@@ -78,7 +78,6 @@ const columns = [
   },
 ];
 
-// Format price helper
 const formatPrice = (price: number) => {
   return new Intl.NumberFormat('ru-RU').format(price);
 };
@@ -100,6 +99,9 @@ export default function KanbanBoard({
 }: KanbanBoardProps) {
   const [activeOrder, setActiveOrder] = useState<OrderWithContext | null>(null);
   const [isProcessing, setIsProcessing] = useState(false);
+  const [toasts, setToasts] = useState<Array<{ id: string; message: string; type: 'success' | 'error' }>>([]);
+  const prevStatsRef = useRef<{ pendingCount: number; totalOrders: number } | null>(null);
+  const [animatingStats, setAnimatingStats] = useState<Set<string>>(new Set());
 
   const sensors = useSensors(
     useSensor(PointerSensor, {
@@ -230,6 +232,32 @@ export default function KanbanBoard({
     };
   }, [sessions, orderTypeFilter]);
 
+  // Animate stats on change
+  useEffect(() => {
+    if (prevStatsRef.current) {
+      const newAnimating = new Set<string>();
+      if (prevStatsRef.current.pendingCount !== stats.pendingCount) {
+        newAnimating.add('pending');
+      }
+      if (prevStatsRef.current.totalOrders !== stats.totalOrders) {
+        newAnimating.add('total');
+      }
+      if (newAnimating.size > 0) {
+        setAnimatingStats(newAnimating);
+        setTimeout(() => setAnimatingStats(new Set()), 300);
+      }
+    }
+    prevStatsRef.current = { pendingCount: stats.pendingCount, totalOrders: stats.totalOrders };
+  }, [stats.pendingCount, stats.totalOrders]);
+
+  const showToast = useCallback((message: string, type: 'success' | 'error') => {
+    const id = `toast-${Date.now()}`;
+    setToasts(prev => [...prev, { id, message, type }]);
+    setTimeout(() => {
+      setToasts(prev => prev.filter(t => t.id !== id));
+    }, 3000);
+  }, []);
+
   const handleDragStart = useCallback((event: DragStartEvent) => {
     const { active } = event;
     const orderId = active.id as string;
@@ -296,7 +324,7 @@ export default function KanbanBoard({
     } finally {
       setIsProcessing(false);
     }
-  }, [ordersByColumn, isProcessing, onConfirmOrder, onMarkOrderPaid, onCancelOrder]);
+  }, [ordersByColumn, isProcessing, onConfirmOrder, onMarkOrderPaid, onCancelOrder, showToast]);
 
   const handleOrderClick = useCallback((order: SessionOrder, sessionId: string) => {
     const session = sessions.find((s) => s.id === sessionId);
@@ -307,60 +335,68 @@ export default function KanbanBoard({
 
   return (
     <div className="relative">
-      {/* Statistics Panel - Professional Enterprise Style */}
-      <div className="mb-4 bg-white border border-slate-200">
-        <div className="flex items-center justify-between px-4 py-3 border-b border-slate-100">
+      {/* Statistics Panel - Dark slate background */}
+      <div className="mb-4 bg-slate-900 rounded border border-slate-800">
+        <div className="flex items-center justify-between px-4 py-3">
           <div className="flex items-center gap-6">
             {/* Total Orders */}
             <div className="flex items-center gap-2">
-              <svg className="w-4 h-4 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <svg className="w-4 h-4 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
               </svg>
-              <span className="text-lg font-semibold text-slate-900 tabular-nums">{stats.totalOrders}</span>
+              <span className={`text-lg font-bold text-white tabular-nums ${animatingStats.has('total') ? 'animate-counter-pulse' : ''}`}>
+                {stats.totalOrders}
+              </span>
               <span className="text-xs text-slate-500">заказов</span>
             </div>
 
             {/* Divider */}
-            <div className="w-px h-6 bg-slate-200" />
+            <div className="w-px h-5 bg-slate-700" />
 
             {/* Total Amount */}
             <div className="flex items-center gap-2">
-              <span className="text-lg font-semibold text-emerald-600 tabular-nums">{formatPrice(stats.totalAmount)}</span>
+              <span className="text-lg font-bold text-emerald-400 tabular-nums">{formatPrice(stats.totalAmount)}</span>
               <span className="text-xs text-slate-500">TJS</span>
             </div>
 
             {/* Divider */}
-            <div className="w-px h-6 bg-slate-200" />
+            <div className="w-px h-5 bg-slate-700" />
 
             {/* Wait Time */}
             {stats.avgWaitTime > 0 && (
               <div className="flex items-center gap-2">
                 <svg className={`w-4 h-4 ${
-                  stats.avgWaitTime > 10 ? 'text-red-500' : stats.avgWaitTime > 5 ? 'text-amber-500' : 'text-slate-400'
+                  stats.avgWaitTime > 10 ? 'text-red-400' : stats.avgWaitTime > 5 ? 'text-amber-400' : 'text-slate-500'
                 }`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
                 </svg>
-                <span className={`text-lg font-semibold tabular-nums ${
-                  stats.avgWaitTime > 10 ? 'text-red-600' : stats.avgWaitTime > 5 ? 'text-amber-600' : 'text-slate-900'
+                <span className={`text-lg font-bold tabular-nums ${
+                  stats.avgWaitTime > 10 ? 'text-red-400' : stats.avgWaitTime > 5 ? 'text-amber-400' : 'text-white'
                 }`}>{stats.avgWaitTime}</span>
                 <span className="text-xs text-slate-500">мин ожид.</span>
               </div>
             )}
           </div>
 
-          {/* Status badges - compact */}
-          <div className="flex items-center gap-1.5">
-            <span className="px-2 py-1 text-[11px] font-medium bg-amber-50 text-amber-700 border border-amber-200 tabular-nums">
+          {/* Status badges */}
+          <div className="flex items-center gap-2">
+            <span className={`px-2.5 py-1 text-xs font-semibold rounded tabular-nums ${
+              stats.pendingCount > 0 ? 'bg-amber-500/20 text-amber-400 border border-amber-500/30' : 'bg-slate-800 text-slate-500 border border-slate-700'
+            } ${animatingStats.has('pending') ? 'animate-counter-pulse' : ''}`}>
               {stats.pendingCount} новых
             </span>
-            <span className="px-2 py-1 text-[11px] font-medium bg-blue-50 text-blue-700 border border-blue-200 tabular-nums">
+            <span className={`px-2.5 py-1 text-xs font-semibold rounded tabular-nums ${
+              stats.confirmedCount > 0 ? 'bg-blue-500/20 text-blue-400 border border-blue-500/30' : 'bg-slate-800 text-slate-500 border border-slate-700'
+            }`}>
               {stats.confirmedCount} готов.
             </span>
-            <span className="px-2 py-1 text-[11px] font-medium bg-emerald-50 text-emerald-700 border border-emerald-200 tabular-nums">
+            <span className={`px-2.5 py-1 text-xs font-semibold rounded tabular-nums ${
+              stats.paidCount > 0 ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30' : 'bg-slate-800 text-slate-500 border border-slate-700'
+            }`}>
               {stats.paidCount} оплач.
             </span>
             {stats.cancelledCount > 0 && (
-              <span className="px-2 py-1 text-[11px] font-medium bg-red-50 text-red-700 border border-red-200 tabular-nums">
+              <span className="px-2.5 py-1 text-xs font-semibold bg-red-500/20 text-red-400 border border-red-500/30 rounded tabular-nums">
                 {stats.cancelledCount} отмен.
               </span>
             )}
@@ -370,8 +406,8 @@ export default function KanbanBoard({
 
       {/* Processing overlay */}
       {isProcessing && (
-        <div className="absolute inset-0 bg-white/60 z-50 flex items-center justify-center">
-          <div className="bg-white border border-slate-200 shadow-sm px-4 py-3 flex items-center gap-3">
+        <div className="absolute inset-0 bg-white/60 z-50 flex items-center justify-center rounded">
+          <div className="bg-white border border-slate-200 shadow-sm px-4 py-3 rounded flex items-center gap-3">
             <span className="w-4 h-4 border-2 border-slate-300 border-t-blue-600 rounded-full animate-spin" />
             <span className="text-sm font-medium text-slate-700">Обработка...</span>
           </div>
@@ -419,32 +455,20 @@ export default function KanbanBoard({
         </DragOverlay>
       </DndContext>
 
-      {/* Toast container */}
-      <div id="kanban-toast-container" className="fixed bottom-4 right-4 z-50" />
+      {/* Toast notifications */}
+      <div className="fixed bottom-4 right-4 z-50 flex flex-col gap-2">
+        {toasts.map((toast) => (
+          <div
+            key={toast.id}
+            className={`
+              px-4 py-2 text-sm font-medium border rounded shadow-sm animate-slide-in-right
+              ${toast.type === 'success' ? 'bg-emerald-50 text-emerald-700 border-emerald-200' : 'bg-red-50 text-red-700 border-red-200'}
+            `}
+          >
+            {toast.message}
+          </div>
+        ))}
+      </div>
     </div>
   );
-}
-
-// Simple toast notification
-function showToast(message: string, type: 'success' | 'error') {
-  const container = document.getElementById('kanban-toast-container');
-  if (!container) return;
-
-  const toast = document.createElement('div');
-  toast.className = `
-    px-4 py-2 text-sm font-medium border shadow-sm transition-all duration-300
-    ${type === 'success' ? 'bg-emerald-50 text-emerald-700 border-emerald-200' : 'bg-red-50 text-red-700 border-red-200'}
-  `;
-  toast.textContent = message;
-
-  container.appendChild(toast);
-
-  setTimeout(() => {
-    toast.classList.add('translate-y-0', 'opacity-100');
-  }, 10);
-
-  setTimeout(() => {
-    toast.classList.add('opacity-0', 'translate-y-2');
-    setTimeout(() => toast.remove(), 300);
-  }, 2000);
 }
