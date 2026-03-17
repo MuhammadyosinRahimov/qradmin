@@ -366,6 +366,66 @@ export default function OrdersPage() {
       fetchTableSessions();
     });
 
+    // Listen for order item cancellations from customers
+    connection.on('OrderItemCancelled', (data: {
+      Order: Order;
+      CancelledItem: {
+        ItemId: string;
+        ItemName: string;
+        SizeName: string | null;
+        Quantity: number;
+        TotalPrice: number;
+        Reason: string | null;
+      };
+      TableNumber: number;
+    }) => {
+      console.log('[SignalR] OrderItemCancelled received:', data);
+
+      // Play notification sound
+      playNotificationSound();
+
+      // Show browser notification
+      if ('Notification' in window && Notification.permission === 'granted') {
+        const itemInfo = data.CancelledItem.SizeName
+          ? `${data.CancelledItem.ItemName} (${data.CancelledItem.SizeName})`
+          : data.CancelledItem.ItemName;
+        new Notification(`Отмена позиции - Стол №${data.TableNumber}`, {
+          body: `${itemInfo} x${data.CancelledItem.Quantity}${data.CancelledItem.Reason ? ` - "${data.CancelledItem.Reason}"` : ''}`,
+          icon: '/favicon.ico',
+        });
+      }
+
+      // Refresh table sessions to show updated order
+      fetchTableSessions();
+    });
+
+    // Listen for extra items added to existing orders
+    connection.on('OrderItemsAdded', (data: {
+      Order: Order;
+      IsExtraOrder: boolean;
+      NewItems: Array<{ ProductName: string; Quantity: number; TotalPrice: number }>;
+      TableNumber: number;
+    }) => {
+      console.log('[SignalR] OrderItemsAdded received:', data);
+
+      // Play notification sound for extra orders (items added after initial order)
+      if (data.IsExtraOrder) {
+        playNotificationSound();
+
+        // Show browser notification for extra orders
+        if ('Notification' in window && Notification.permission === 'granted') {
+          const itemsList = data.NewItems.map(i => `${i.ProductName} x${i.Quantity}`).join(', ');
+          new Notification(`Доп. заказ - Стол №${data.TableNumber}`, {
+            body: itemsList,
+            icon: '/favicon.ico',
+          });
+        }
+      }
+
+      // Refresh table sessions to show updated order
+      fetchTableSessions();
+    });
+
     connection
       .start()
       .then(() => {

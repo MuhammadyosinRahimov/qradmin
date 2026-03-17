@@ -26,7 +26,7 @@ interface KanbanBoardProps {
   onOrderClick: (order: SessionOrder, session: TableSession) => void;
 }
 
-// Column configuration
+// Column configuration - professional enterprise style
 const columns = [
   {
     id: 'pending',
@@ -34,11 +34,11 @@ const columns = [
     status: OrderStatus.Pending,
     isPaid: false,
     icon: (
-      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
       </svg>
     ),
-    headerGradient: 'bg-gradient-to-r from-yellow-500 to-orange-500 text-white',
+    headerColor: 'text-amber-600',
   },
   {
     id: 'confirmed',
@@ -46,11 +46,11 @@ const columns = [
     status: OrderStatus.Confirmed,
     isPaid: false,
     icon: (
-      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 18.657A8 8 0 016.343 7.343S7 9 9 10c0-2 .5-5 2.986-7C14 5 16.09 5.777 17.656 7.343A7.975 7.975 0 0120 13a7.975 7.975 0 01-2.343 5.657z" />
       </svg>
     ),
-    headerGradient: 'bg-gradient-to-r from-blue-500 to-indigo-500 text-white',
+    headerColor: 'text-blue-600',
   },
   {
     id: 'paid',
@@ -58,11 +58,11 @@ const columns = [
     status: null,
     isPaid: true,
     icon: (
-      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
       </svg>
     ),
-    headerGradient: 'bg-gradient-to-r from-green-500 to-emerald-500 text-white',
+    headerColor: 'text-emerald-600',
   },
   {
     id: 'cancelled',
@@ -70,11 +70,11 @@ const columns = [
     status: OrderStatus.Cancelled,
     isPaid: false,
     icon: (
-      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
       </svg>
     ),
-    headerGradient: 'bg-gradient-to-r from-red-500 to-rose-600 text-white',
+    headerColor: 'text-red-500',
   },
 ];
 
@@ -153,7 +153,7 @@ export default function KanbanBoard({
           result.cancelled.push(orderWithContext);
           totals.cancelled += order.total;
           totalOrders++;
-          return; // Don't add to totalAmount
+          return;
         }
 
         // Calculate confirmed items price only (status = 1)
@@ -167,9 +167,7 @@ export default function KanbanBoard({
         ) || false;
 
         // Determine column based on pending items, then status, then isPaid
-        // If there are pending items - order should be in "Новые" or "Готовятся" (not "Оплачено")
         if (hasPendingItems) {
-          // Order with new items that need confirmation
           if (order.status === OrderStatus.Confirmed) {
             result.confirmed.push(orderWithContext);
             totals.confirmed += confirmedItemsPrice;
@@ -177,7 +175,6 @@ export default function KanbanBoard({
             result.pending.push(orderWithContext);
             totals.pending += confirmedItemsPrice;
           }
-          // Calculate wait time for orders with pending items
           const waitTime = Math.floor((now.getTime() - new Date(order.createdAt).getTime()) / 60000);
           totalWaitTime += waitTime;
           orderCount++;
@@ -187,14 +184,12 @@ export default function KanbanBoard({
         } else if (order.status === OrderStatus.Confirmed) {
           result.confirmed.push(orderWithContext);
           totals.confirmed += confirmedItemsPrice;
-          // Calculate wait time for unpaid orders
           const waitTime = Math.floor((now.getTime() - new Date(order.createdAt).getTime()) / 60000);
           totalWaitTime += waitTime;
           orderCount++;
         } else if (order.status === OrderStatus.Pending) {
           result.pending.push(orderWithContext);
           totals.pending += confirmedItemsPrice;
-          // Calculate wait time for pending orders
           const waitTime = Math.floor((now.getTime() - new Date(order.createdAt).getTime()) / 60000);
           totalWaitTime += waitTime;
           orderCount++;
@@ -205,7 +200,7 @@ export default function KanbanBoard({
       });
     });
 
-    // Sort by creation time (newest first for pending, oldest first for others)
+    // Sort by creation time
     result.pending.sort((a, b) =>
       new Date(b.order.createdAt).getTime() - new Date(a.order.createdAt).getTime()
     );
@@ -239,7 +234,6 @@ export default function KanbanBoard({
     const { active } = event;
     const orderId = active.id as string;
 
-    // Find the order in all columns
     for (const columnOrders of Object.values(ordersByColumn)) {
       const found = columnOrders.find((o) => o.order.id === orderId);
       if (found) {
@@ -258,7 +252,6 @@ export default function KanbanBoard({
     const orderId = active.id as string;
     const targetColumn = over.id as string;
 
-    // Find the order and its current column
     let currentColumn = '';
     let orderContext: OrderWithContext | null = null;
 
@@ -273,16 +266,14 @@ export default function KanbanBoard({
 
     if (!orderContext || currentColumn === targetColumn) return;
 
-    // Validate transition
     const validTransitions: Record<string, string[]> = {
       pending: ['confirmed', 'cancelled'],
       confirmed: ['paid', 'cancelled'],
-      paid: [], // No transitions from paid
-      cancelled: [], // No transitions from cancelled
+      paid: [],
+      cancelled: [],
     };
 
     if (!validTransitions[currentColumn]?.includes(targetColumn)) {
-      // Show error toast
       showToast('Недопустимый переход', 'error');
       return;
     }
@@ -291,14 +282,11 @@ export default function KanbanBoard({
 
     try {
       if (targetColumn === 'confirmed' && currentColumn === 'pending') {
-        // Pending -> Confirmed: confirm pending items first
         await onConfirmOrder(orderId);
         showToast('Заказ подтверждён', 'success');
       } else if (targetColumn === 'paid' && currentColumn === 'confirmed') {
-        // Confirmed -> Paid: mark as paid
         onMarkOrderPaid(orderContext.sessionId, orderId);
       } else if (targetColumn === 'cancelled') {
-        // Any -> Cancelled: cancel the order
         await onCancelOrder(orderId);
         showToast('Заказ отменён', 'success');
       }
@@ -319,65 +307,61 @@ export default function KanbanBoard({
 
   return (
     <div className="relative">
-      {/* Statistics Panel */}
-      <div className="mb-4 p-4 bg-white rounded-xl shadow-sm border border-gray-100">
-        <div className="flex items-center justify-between flex-wrap gap-4">
-          <div className="flex gap-6 flex-wrap">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center">
-                <svg className="w-5 h-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
-                </svg>
-              </div>
-              <div>
-                <span className="text-2xl font-bold text-gray-900">{stats.totalOrders}</span>
-                <p className="text-sm text-gray-500">Заказов</p>
-              </div>
+      {/* Statistics Panel - Professional Enterprise Style */}
+      <div className="mb-4 bg-white border border-slate-200">
+        <div className="flex items-center justify-between px-4 py-3 border-b border-slate-100">
+          <div className="flex items-center gap-6">
+            {/* Total Orders */}
+            <div className="flex items-center gap-2">
+              <svg className="w-4 h-4 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+              </svg>
+              <span className="text-lg font-semibold text-slate-900 tabular-nums">{stats.totalOrders}</span>
+              <span className="text-xs text-slate-500">заказов</span>
             </div>
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 bg-green-100 rounded-full flex items-center justify-center">
-                <svg className="w-5 h-5 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                </svg>
-              </div>
-              <div>
-                <span className="text-2xl font-bold text-green-600">{formatPrice(stats.totalAmount)}</span>
-                <p className="text-sm text-gray-500">TJS</p>
-              </div>
+
+            {/* Divider */}
+            <div className="w-px h-6 bg-slate-200" />
+
+            {/* Total Amount */}
+            <div className="flex items-center gap-2">
+              <span className="text-lg font-semibold text-emerald-600 tabular-nums">{formatPrice(stats.totalAmount)}</span>
+              <span className="text-xs text-slate-500">TJS</span>
             </div>
+
+            {/* Divider */}
+            <div className="w-px h-6 bg-slate-200" />
+
+            {/* Wait Time */}
             {stats.avgWaitTime > 0 && (
-              <div className="flex items-center gap-3">
-                <div className={`w-10 h-10 rounded-full flex items-center justify-center ${
-                  stats.avgWaitTime > 10 ? 'bg-red-100' : stats.avgWaitTime > 5 ? 'bg-yellow-100' : 'bg-blue-100'
-                }`}>
-                  <svg className={`w-5 h-5 ${
-                    stats.avgWaitTime > 10 ? 'text-red-600' : stats.avgWaitTime > 5 ? 'text-yellow-600' : 'text-blue-600'
-                  }`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-                  </svg>
-                </div>
-                <div>
-                  <span className={`text-2xl font-bold ${
-                    stats.avgWaitTime > 10 ? 'text-red-600' : stats.avgWaitTime > 5 ? 'text-yellow-600' : 'text-blue-600'
-                  }`}>{stats.avgWaitTime}</span>
-                  <p className="text-sm text-gray-500">мин ожидание</p>
-                </div>
+              <div className="flex items-center gap-2">
+                <svg className={`w-4 h-4 ${
+                  stats.avgWaitTime > 10 ? 'text-red-500' : stats.avgWaitTime > 5 ? 'text-amber-500' : 'text-slate-400'
+                }`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+                <span className={`text-lg font-semibold tabular-nums ${
+                  stats.avgWaitTime > 10 ? 'text-red-600' : stats.avgWaitTime > 5 ? 'text-amber-600' : 'text-slate-900'
+                }`}>{stats.avgWaitTime}</span>
+                <span className="text-xs text-slate-500">мин ожид.</span>
               </div>
             )}
           </div>
-          <div className="flex items-center gap-2 text-sm">
-            <span className="px-2 py-1 bg-yellow-100 text-yellow-700 rounded-full font-medium">
+
+          {/* Status badges - compact */}
+          <div className="flex items-center gap-1.5">
+            <span className="px-2 py-1 text-[11px] font-medium bg-amber-50 text-amber-700 border border-amber-200 tabular-nums">
               {stats.pendingCount} новых
             </span>
-            <span className="px-2 py-1 bg-blue-100 text-blue-700 rounded-full font-medium">
-              {stats.confirmedCount} готовятся
+            <span className="px-2 py-1 text-[11px] font-medium bg-blue-50 text-blue-700 border border-blue-200 tabular-nums">
+              {stats.confirmedCount} готов.
             </span>
-            <span className="px-2 py-1 bg-green-100 text-green-700 rounded-full font-medium">
-              {stats.paidCount} оплачено
+            <span className="px-2 py-1 text-[11px] font-medium bg-emerald-50 text-emerald-700 border border-emerald-200 tabular-nums">
+              {stats.paidCount} оплач.
             </span>
             {stats.cancelledCount > 0 && (
-              <span className="px-2 py-1 bg-red-100 text-red-700 rounded-full font-medium">
-                {stats.cancelledCount} отменено
+              <span className="px-2 py-1 text-[11px] font-medium bg-red-50 text-red-700 border border-red-200 tabular-nums">
+                {stats.cancelledCount} отмен.
               </span>
             )}
           </div>
@@ -386,13 +370,10 @@ export default function KanbanBoard({
 
       {/* Processing overlay */}
       {isProcessing && (
-        <div className="absolute inset-0 bg-white/50 z-50 flex items-center justify-center">
-          <div className="bg-white rounded-lg shadow-lg p-4 flex items-center gap-3">
-            <svg className="animate-spin h-5 w-5 text-blue-600" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-            </svg>
-            <span className="font-medium text-gray-700">Обработка...</span>
+        <div className="absolute inset-0 bg-white/60 z-50 flex items-center justify-center">
+          <div className="bg-white border border-slate-200 shadow-sm px-4 py-3 flex items-center gap-3">
+            <span className="w-4 h-4 border-2 border-slate-300 border-t-blue-600 rounded-full animate-spin" />
+            <span className="text-sm font-medium text-slate-700">Обработка...</span>
           </div>
         </div>
       )}
@@ -403,7 +384,7 @@ export default function KanbanBoard({
         onDragStart={handleDragStart}
         onDragEnd={handleDragEnd}
       >
-        <div className="flex gap-4 overflow-x-auto pb-4">
+        <div className="flex gap-3 overflow-x-auto pb-4">
           {columns.map((column) => (
             <KanbanColumn
               key={column.id}
@@ -413,7 +394,7 @@ export default function KanbanBoard({
               orders={ordersByColumn[column.id] || []}
               count={ordersByColumn[column.id]?.length || 0}
               totalAmount={columnTotals[column.id] || 0}
-              headerGradient={column.headerGradient}
+              headerColor={column.headerColor}
               isCancelledColumn={column.id === 'cancelled'}
               onOrderClick={handleOrderClick}
               onConfirmOrder={onConfirmOrder}
@@ -425,7 +406,7 @@ export default function KanbanBoard({
 
         <DragOverlay>
           {activeOrder ? (
-            <div className="opacity-90 transform rotate-3">
+            <div className="opacity-95 shadow-xl">
               <KanbanCard
                 order={activeOrder.order}
                 sessionId={activeOrder.sessionId}
@@ -451,19 +432,17 @@ function showToast(message: string, type: 'success' | 'error') {
 
   const toast = document.createElement('div');
   toast.className = `
-    px-4 py-3 rounded-lg shadow-lg transform transition-all duration-300
-    ${type === 'success' ? 'bg-green-500 text-white' : 'bg-red-500 text-white'}
+    px-4 py-2 text-sm font-medium border shadow-sm transition-all duration-300
+    ${type === 'success' ? 'bg-emerald-50 text-emerald-700 border-emerald-200' : 'bg-red-50 text-red-700 border-red-200'}
   `;
   toast.textContent = message;
 
   container.appendChild(toast);
 
-  // Animate in
   setTimeout(() => {
     toast.classList.add('translate-y-0', 'opacity-100');
   }, 10);
 
-  // Remove after 2 seconds
   setTimeout(() => {
     toast.classList.add('opacity-0', 'translate-y-2');
     setTimeout(() => toast.remove(), 300);

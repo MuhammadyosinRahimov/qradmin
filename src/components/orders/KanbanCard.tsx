@@ -19,38 +19,30 @@ interface KanbanCardProps {
 
 const orderTypeConfig = {
   [OrderType.DineIn]: {
-    icon: (
-      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z" />
-      </svg>
-    ),
-    label: 'В ресторане',
-    borderColor: 'border-l-orange-500',
-    badgeBg: 'bg-orange-100 text-orange-700',
-    bgGlow: 'hover:shadow-orange-100',
+    label: 'Зал',
+    color: 'text-slate-600',
+    bg: 'bg-slate-50',
+    border: 'border-slate-200',
   },
   [OrderType.Delivery]: {
-    icon: (
-      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16V6a1 1 0 00-1-1H4a1 1 0 00-1 1v10a1 1 0 001 1h1m8-1a1 1 0 01-1 1H9m4-1V8a1 1 0 011-1h2.586a1 1 0 01.707.293l3.414 3.414a1 1 0 01.293.707V16a1 1 0 01-1 1h-1m-6-1a1 1 0 001 1h1M5 17a2 2 0 104 0m-4 0a2 2 0 114 0m6 0a2 2 0 104 0m-4 0a2 2 0 114 0" />
-      </svg>
-    ),
     label: 'Доставка',
-    borderColor: 'border-l-purple-500',
-    badgeBg: 'bg-purple-100 text-purple-700',
-    bgGlow: 'hover:shadow-purple-100',
+    color: 'text-violet-600',
+    bg: 'bg-violet-50',
+    border: 'border-violet-200',
   },
   [OrderType.Takeaway]: {
-    icon: (
-      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z" />
-      </svg>
-    ),
     label: 'Самовывоз',
-    borderColor: 'border-l-teal-500',
-    badgeBg: 'bg-teal-100 text-teal-700',
-    bgGlow: 'hover:shadow-teal-100',
+    color: 'text-cyan-600',
+    bg: 'bg-cyan-50',
+    border: 'border-cyan-200',
   },
+};
+
+const statusColors = {
+  pending: 'border-l-amber-500',
+  confirmed: 'border-l-blue-500',
+  paid: 'border-l-emerald-500',
+  cancelled: 'border-l-red-400',
 };
 
 export default function KanbanCard({
@@ -66,7 +58,6 @@ export default function KanbanCard({
 }: KanbanCardProps) {
   const [isProcessing, setIsProcessing] = useState(false);
 
-  // Check if the order is cancelled
   const isCancelled = order.status === OrderStatus.Cancelled;
 
   const {
@@ -78,7 +69,7 @@ export default function KanbanCard({
     isDragging,
   } = useSortable({
     id: order.id,
-    disabled: isCancelled, // Disable drag for cancelled orders
+    disabled: isCancelled,
     data: {
       order,
       sessionId,
@@ -101,8 +92,8 @@ export default function KanbanCard({
   const waitingMinutes = Math.floor((now.getTime() - createdAt.getTime()) / 60000);
 
   // Urgency levels
-  const isUrgent = waitingMinutes > 10;
-  const isWarning = waitingMinutes >= 5 && waitingMinutes <= 10;
+  const isUrgent = waitingMinutes > 15;
+  const isWarning = waitingMinutes >= 8 && waitingMinutes <= 15;
 
   const formatTime = (dateString: string) => {
     return new Date(dateString).toLocaleTimeString('ru-RU', {
@@ -115,28 +106,27 @@ export default function KanbanCard({
     return new Intl.NumberFormat('ru-RU').format(price);
   };
 
-  // Get display items (first 3)
-  const displayItems = order.items.filter(i => i.status !== 2).slice(0, 3);
-  const remainingCount = order.items.filter(i => i.status !== 2).length - 3;
+  // Get all non-cancelled items
+  const activeItems = order.items.filter(i => i.status !== 2);
+  const displayItems = activeItems.slice(0, 4);
+  const remainingCount = activeItems.length - 4;
 
-  // Calculate confirmed price (only items with status = 1 - Active/Confirmed)
+  // Calculate prices
   const confirmedItemsPrice = order.items
     .filter(i => i.status === 1)
     .reduce((sum, item) => sum + item.totalPrice, 0);
 
-  // Calculate pending price (items with status = 0 - Pending)
   const pendingItemsPrice = order.items
     .filter(i => i.status === 0)
     .reduce((sum, item) => sum + item.totalPrice, 0);
 
-  // Check if there are pending items
   const hasPendingPrice = pendingItemsPrice > 0;
+  const totalPrice = confirmedItemsPrice + pendingItemsPrice;
 
-  // Handle quick confirm
+  // Handlers
   const handleConfirm = async (e: React.MouseEvent) => {
     e.stopPropagation();
     if (!onConfirmOrder || isProcessing) return;
-
     setIsProcessing(true);
     try {
       await onConfirmOrder(order.id);
@@ -145,19 +135,15 @@ export default function KanbanCard({
     }
   };
 
-  // Handle quick mark as paid
   const handleMarkPaid = (e: React.MouseEvent) => {
     e.stopPropagation();
     if (!onMarkOrderPaid || isProcessing) return;
-
     onMarkOrderPaid(sessionId, order.id);
   };
 
-  // Handle quick cancel
   const handleCancel = async (e: React.MouseEvent) => {
     e.stopPropagation();
     if (!onCancelOrder || isProcessing) return;
-
     setIsProcessing(true);
     try {
       await onCancelOrder(order.id);
@@ -171,6 +157,14 @@ export default function KanbanCard({
   const showPayButton = columnId === 'confirmed' && !order.isPaid && order.status === OrderStatus.Confirmed;
   const showCancelButton = !isCancelled && (columnId === 'pending' || columnId === 'confirmed');
 
+  const borderColor = isCancelled
+    ? statusColors.cancelled
+    : columnId === 'paid'
+      ? statusColors.paid
+      : columnId === 'confirmed'
+        ? statusColors.confirmed
+        : statusColors.pending;
+
   return (
     <div
       ref={setNodeRef}
@@ -179,155 +173,121 @@ export default function KanbanCard({
       {...listeners}
       onClick={onClick}
       className={`
-        bg-white rounded-xl shadow-sm border-l-4
-        ${isCancelled ? 'border-l-red-400 opacity-75 grayscale-[30%]' : typeConfig.borderColor}
-        ${isCancelled ? 'cursor-not-allowed' : 'cursor-grab active:cursor-grabbing'}
-        transition-all duration-200
-        ${isCancelled ? '' : `hover:shadow-lg ${typeConfig.bgGlow}`}
-        ${isDragging ? 'opacity-60 shadow-2xl scale-105 z-50 rotate-2' : ''}
-        ${!isCancelled && isUrgent ? 'ring-2 ring-red-400 animate-pulse' : ''}
-        ${!isCancelled && isWarning ? 'ring-2 ring-yellow-400' : ''}
-        relative
+        bg-white border border-slate-200 border-l-[3px] ${borderColor}
+        ${isCancelled ? 'opacity-60' : 'hover:border-slate-300 hover:shadow-sm'}
+        ${isCancelled ? 'cursor-not-allowed' : 'cursor-pointer'}
+        transition-all duration-150
+        ${isDragging ? 'shadow-lg scale-[1.02] z-50 ring-2 ring-blue-400' : ''}
+        ${!isCancelled && isUrgent ? 'bg-red-50/50' : ''}
+        ${!isCancelled && isWarning ? 'bg-amber-50/30' : ''}
       `}
     >
+      {/* Header row - compact */}
+      <div className="px-3 py-2 border-b border-slate-100 flex items-center justify-between">
+        <div className="flex items-center gap-2">
+          <span className="font-semibold text-slate-900 text-sm">
+            #{tableNumber}
+          </span>
+          {tableName && (
+            <span className="text-xs text-slate-500">{tableName}</span>
+          )}
+          <span className={`text-[10px] px-1.5 py-0.5 font-medium ${typeConfig.bg} ${typeConfig.color} ${typeConfig.border} border`}>
+            {typeConfig.label}
+          </span>
+        </div>
+        <div className="flex items-center gap-2">
+          {order.hasPendingItems && (
+            <span className="w-1.5 h-1.5 bg-amber-500 rounded-full" title="Новые блюда" />
+          )}
+          <span className={`text-xs font-medium tabular-nums ${
+            isUrgent ? 'text-red-600' : isWarning ? 'text-amber-600' : 'text-slate-400'
+          }`}>
+            {waitingMinutes}м
+          </span>
+          <span className="text-[10px] text-slate-400 tabular-nums">
+            {formatTime(order.createdAt)}
+          </span>
+        </div>
+      </div>
+
       {/* Cancelled badge */}
       {isCancelled && (
-        <div className="absolute top-2 right-2 z-10">
-          <span className="px-2 py-1 bg-red-100 text-red-700 text-xs font-semibold rounded-full shadow-sm">
+        <div className="px-3 py-1 bg-red-50 border-b border-red-100">
+          <span className="text-[10px] font-medium text-red-600 uppercase tracking-wide">
             Отменён
           </span>
         </div>
       )}
 
-      {/* Urgency indicator bar */}
-      {!isCancelled && (isUrgent || isWarning) && (
-        <div className={`h-1.5 rounded-t-lg ${isUrgent ? 'bg-gradient-to-r from-red-500 to-red-600' : 'bg-gradient-to-r from-yellow-400 to-yellow-500'}`} />
+      {/* Delivery/Takeaway info - compact */}
+      {orderType === OrderType.Delivery && order.deliveryAddress && (
+        <div className="px-3 py-1.5 bg-violet-50/50 border-b border-violet-100 text-[11px] text-violet-700 truncate">
+          <span className="font-medium">Адрес:</span> {order.deliveryAddress}
+        </div>
       )}
 
-      <div className="p-3">
-        {/* Header with larger order number */}
-        <div className="flex items-center justify-between mb-2">
-          <div className="flex items-center gap-2">
-            <div className="w-10 h-10 bg-gray-100 rounded-lg flex items-center justify-center">
-              <span className="font-bold text-lg text-gray-800">
-                #{tableNumber}
+      {orderType === OrderType.Takeaway && order.customerName && (
+        <div className="px-3 py-1.5 bg-cyan-50/50 border-b border-cyan-100 text-[11px] text-cyan-700">
+          <span className="font-medium">{order.customerName}</span>
+          {order.customerPhone && <span className="text-cyan-500 ml-1">({order.customerPhone})</span>}
+        </div>
+      )}
+
+      {/* Items list - high density */}
+      <div className="px-3 py-2">
+        <div className="space-y-0.5">
+          {displayItems.map((item) => (
+            <div key={item.id} className="flex justify-between text-[11px] leading-tight">
+              <span className={`truncate flex-1 mr-2 ${item.status === 0 ? 'text-amber-700 font-medium' : 'text-slate-600'}`}>
+                {item.productName}
+                {item.note && <span className="text-slate-400 ml-1" title={item.note}>*</span>}
               </span>
+              <span className="text-slate-500 tabular-nums">×{item.quantity}</span>
             </div>
-            <div>
-              {tableName && (
-                <span className="text-sm font-medium text-gray-700">{tableName}</span>
-              )}
-              <div className="flex items-center gap-1.5 text-xs text-gray-500">
-                <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-                </svg>
-                <span>{formatTime(order.createdAt)}</span>
-              </div>
+          ))}
+          {remainingCount > 0 && (
+            <div className="text-[10px] text-slate-400">
+              +{remainingCount} ещё
             </div>
-          </div>
-          <div className="flex flex-col items-end gap-1">
-            <span className={`text-sm font-bold ${
-              isUrgent ? 'text-red-600' : isWarning ? 'text-yellow-600' : 'text-gray-500'
-            }`}>
-              {waitingMinutes} мин
+          )}
+        </div>
+      </div>
+
+      {/* Footer - price and actions */}
+      <div className="px-3 py-2 border-t border-slate-100 bg-slate-50/50">
+        <div className="flex items-center justify-between">
+          <div className="flex items-baseline gap-1.5">
+            <span className="text-sm font-semibold text-slate-900 tabular-nums">
+              {formatPrice(totalPrice)}
             </span>
-            {order.hasPendingItems && (
-              <span className="w-2.5 h-2.5 bg-orange-500 rounded-full animate-pulse" title="Новые блюда" />
+            <span className="text-[10px] text-slate-400">TJS</span>
+            {hasPendingPrice && (
+              <span className="text-[10px] text-amber-600 font-medium">
+                (+{formatPrice(pendingItemsPrice)} ожид.)
+              </span>
             )}
           </div>
-        </div>
-
-        {/* Order type badge */}
-        <div className="flex items-center justify-between mb-2">
-          <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold ${typeConfig.badgeBg}`}>
-            {typeConfig.icon}
-            {typeConfig.label}
-          </span>
           {order.wantsCashPayment && (
-            <span className="text-xs px-2 py-0.5 bg-amber-100 text-amber-700 rounded-full font-medium flex items-center gap-1">
-              <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z" />
-              </svg>
+            <span className="text-[10px] px-1.5 py-0.5 bg-amber-100 text-amber-700 font-medium">
               Наличные
             </span>
           )}
         </div>
 
-        {/* Customer info for delivery/takeaway */}
-        {orderType === OrderType.Delivery && order.deliveryAddress && (
-          <div className="mb-2 p-2 bg-purple-50 rounded-lg text-xs border border-purple-100">
-            <div className="flex items-start gap-1.5">
-              <svg className="w-3.5 h-3.5 text-purple-500 mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
-              </svg>
-              <span className="text-purple-700 line-clamp-2 font-medium">{order.deliveryAddress}</span>
-            </div>
-          </div>
-        )}
-
-        {orderType === OrderType.Takeaway && order.customerName && (
-          <div className="mb-2 p-2 bg-teal-50 rounded-lg text-xs border border-teal-100">
-            <div className="flex items-center gap-1.5">
-              <svg className="w-3.5 h-3.5 text-teal-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
-              </svg>
-              <span className="text-teal-700 font-medium">{order.customerName}</span>
-              {order.customerPhone && (
-                <span className="text-teal-600">({order.customerPhone})</span>
-              )}
-            </div>
-          </div>
-        )}
-
-        {/* Items */}
-        <div className="space-y-1 mb-2">
-          {displayItems.map((item) => (
-            <div key={item.id} className="flex justify-between text-xs">
-              <span className="text-gray-600 truncate flex-1 mr-2">
-                {item.productName}
-                {item.status === 0 && <span className="text-orange-500 ml-1 font-medium">(новое)</span>}
-              </span>
-              <span className="text-gray-500 flex-shrink-0 font-medium">x{item.quantity}</span>
-            </div>
-          ))}
-          {remainingCount > 0 && (
-            <div className="text-xs text-gray-400 font-medium">
-              +{remainingCount} ещё...
-            </div>
-          )}
-        </div>
-
-        {/* Footer with price */}
-        <div className="flex items-center justify-between pt-2 border-t border-gray-100">
-          <div className="flex flex-col">
-            <span className="text-base font-bold text-gray-900">
-              {formatPrice(confirmedItemsPrice)} TJS
-            </span>
-            {hasPendingPrice && (
-              <span className="text-xs text-orange-500 font-medium">
-                +{formatPrice(pendingItemsPrice)} TJS (ожидает)
-              </span>
-            )}
-          </div>
-        </div>
-
-        {/* Quick action buttons */}
+        {/* Quick actions - minimal */}
         {(showConfirmButton || showPayButton || showCancelButton) && (
-          <div className="flex gap-2 mt-3 pt-2 border-t border-gray-100">
+          <div className="flex gap-1.5 mt-2">
             {showConfirmButton && (
               <button
                 onClick={handleConfirm}
                 disabled={isProcessing}
-                className="flex-1 px-3 py-2 bg-gradient-to-r from-blue-500 to-blue-600 text-white text-xs font-semibold rounded-lg hover:from-blue-600 hover:to-blue-700 transition-all duration-200 flex items-center justify-center gap-1.5 disabled:opacity-50 shadow-sm hover:shadow"
+                className="flex-1 px-2 py-1.5 bg-blue-600 text-white text-[11px] font-medium hover:bg-blue-700 transition-colors disabled:opacity-50 flex items-center justify-center gap-1"
               >
                 {isProcessing ? (
-                  <svg className="animate-spin h-4 w-4" fill="none" viewBox="0 0 24 24">
-                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                  </svg>
+                  <span className="w-3 h-3 border-2 border-white/30 border-t-white rounded-full animate-spin" />
                 ) : (
                   <>
-                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
                     </svg>
                     Подтвердить
@@ -339,9 +299,9 @@ export default function KanbanCard({
               <button
                 onClick={handleMarkPaid}
                 disabled={isProcessing}
-                className="flex-1 px-3 py-2 bg-gradient-to-r from-green-500 to-emerald-500 text-white text-xs font-semibold rounded-lg hover:from-green-600 hover:to-emerald-600 transition-all duration-200 flex items-center justify-center gap-1.5 disabled:opacity-50 shadow-sm hover:shadow"
+                className="flex-1 px-2 py-1.5 bg-emerald-600 text-white text-[11px] font-medium hover:bg-emerald-700 transition-colors disabled:opacity-50 flex items-center justify-center gap-1"
               >
-                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z" />
                 </svg>
                 Оплачено
@@ -351,9 +311,10 @@ export default function KanbanCard({
               <button
                 onClick={handleCancel}
                 disabled={isProcessing}
-                className="px-3 py-2 bg-gradient-to-r from-red-500 to-rose-500 text-white text-xs font-semibold rounded-lg hover:from-red-600 hover:to-rose-600 transition-all duration-200 flex items-center justify-center gap-1.5 disabled:opacity-50 shadow-sm hover:shadow"
+                className="px-2 py-1.5 bg-slate-100 text-slate-600 text-[11px] font-medium hover:bg-red-50 hover:text-red-600 transition-colors disabled:opacity-50"
+                title="Отменить"
               >
-                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
                 </svg>
               </button>
