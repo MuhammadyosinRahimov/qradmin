@@ -426,6 +426,18 @@ export default function OrdersPage() {
       fetchTableSessions();
     });
 
+    // Universal event - always refresh on any order change
+    connection.on('OrdersChanged', (data: {
+      Action: string;
+      OrderId: string;
+      TableNumber: number;
+      RestaurantId: string;
+    }) => {
+      console.log('[SignalR] OrdersChanged received:', data);
+      // Always refresh data on any order change
+      fetchTableSessions();
+    });
+
     connection
       .start()
       .then(() => {
