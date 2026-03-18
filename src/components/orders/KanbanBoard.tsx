@@ -14,16 +14,18 @@ import {
 } from '@dnd-kit/core';
 import { sortableKeyboardCoordinates } from '@dnd-kit/sortable';
 import { TableSession, SessionOrder, OrderStatus, OrderType } from '@/types';
-import KanbanColumn from './KanbanColumn';
-import KanbanCard from './KanbanCard';
+import SessionColumn from './SessionColumn';
+import SessionCard from './SessionCard';
 
 interface KanbanBoardProps {
   sessions: TableSession[];
   orderTypeFilter: OrderType | 'all';
   onConfirmOrder: (orderId: string) => Promise<void>;
   onMarkOrderPaid: (sessionId: string, orderId: string) => void;
+  onMarkSessionPaid: (sessionId: string) => void;
   onCancelOrder: (orderId: string) => Promise<void>;
   onOrderClick: (order: SessionOrder, session: TableSession) => void;
+  onSessionClick: (session: TableSession) => void;
 }
 
 // Column configuration
@@ -31,8 +33,6 @@ const columns = [
   {
     id: 'pending',
     title: 'Новые',
-    status: OrderStatus.Pending,
-    isPaid: false,
     icon: (
       <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
@@ -43,8 +43,6 @@ const columns = [
   {
     id: 'confirmed',
     title: 'Готовятся',
-    status: OrderStatus.Confirmed,
-    isPaid: false,
     icon: (
       <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 18.657A8 8 0 016.343 7.343S7 9 9 10c0-2 .5-5 2.986-7C14 5 16.09 5.777 17.656 7.343A7.975 7.975 0 0120 13a7.975 7.975 0 01-2.343 5.657z" />
@@ -55,8 +53,6 @@ const columns = [
   {
     id: 'paid',
     title: 'Оплачено',
-    status: null,
-    isPaid: true,
     icon: (
       <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
@@ -67,8 +63,6 @@ const columns = [
   {
     id: 'cancelled',
     title: 'Отмена',
-    status: OrderStatus.Cancelled,
-    isPaid: false,
     icon: (
       <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
@@ -82,11 +76,40 @@ const formatPrice = (price: number) => {
   return new Intl.NumberFormat('ru-RU').format(price);
 };
 
-interface OrderWithContext {
-  order: SessionOrder;
-  sessionId: string;
-  tableNumber: number;
-  tableName?: string;
+// Determine which column a session belongs to based on its orders
+function getSessionColumn(session: TableSession): string {
+  const orders = session.orders || [];
+
+  // Filter by active (non-cancelled) orders
+  const activeOrders = orders.filter(o => o.status !== OrderStatus.Cancelled);
+
+  // If all orders are cancelled
+  if (activeOrders.length === 0 && orders.length > 0) {
+    return 'cancelled';
+  }
+
+  // If no orders at all
+  if (orders.length === 0) {
+    return 'pending';
+  }
+
+  // Check if all active orders are paid
+  const allPaid = activeOrders.length > 0 && activeOrders.every(o => o.isPaid);
+  if (allPaid) {
+    return 'paid';
+  }
+
+  // Check if there are any pending orders or pending items
+  const hasPending = activeOrders.some(o =>
+    o.status === OrderStatus.Pending ||
+    o.items?.some(i => i.status === 0)
+  );
+  if (hasPending) {
+    return 'pending';
+  }
+
+  // Otherwise confirmed
+  return 'confirmed';
 }
 
 export default function KanbanBoard({
@@ -94,13 +117,15 @@ export default function KanbanBoard({
   orderTypeFilter,
   onConfirmOrder,
   onMarkOrderPaid,
+  onMarkSessionPaid,
   onCancelOrder,
   onOrderClick,
+  onSessionClick,
 }: KanbanBoardProps) {
-  const [activeOrder, setActiveOrder] = useState<OrderWithContext | null>(null);
+  const [activeSession, setActiveSession] = useState<TableSession | null>(null);
   const [isProcessing, setIsProcessing] = useState(false);
   const [toasts, setToasts] = useState<Array<{ id: string; message: string; type: 'success' | 'error' }>>([]);
-  const prevStatsRef = useRef<{ pendingCount: number; totalOrders: number } | null>(null);
+  const prevStatsRef = useRef<{ pendingCount: number; totalSessions: number } | null>(null);
   const [animatingStats, setAnimatingStats] = useState<Set<string>>(new Set());
 
   const sensors = useSensors(
@@ -114,9 +139,9 @@ export default function KanbanBoard({
     })
   );
 
-  // Group orders by column and calculate sums
-  const { ordersByColumn, columnTotals, stats } = useMemo(() => {
-    const result: Record<string, OrderWithContext[]> = {
+  // Filter sessions by order type and group by column
+  const { sessionsByColumn, columnTotals, stats } = useMemo(() => {
+    const result: Record<string, TableSession[]> = {
       pending: [],
       confirmed: [],
       paid: [],
@@ -129,101 +154,81 @@ export default function KanbanBoard({
       cancelled: 0,
     };
 
-    let totalOrders = 0;
+    let totalSessions = 0;
     let totalAmount = 0;
     let totalWaitTime = 0;
-    let orderCount = 0;
+    let sessionCount = 0;
     const now = new Date();
 
     sessions.forEach((session) => {
-      session.orders.forEach((order) => {
-        // Apply order type filter
-        if (orderTypeFilter !== 'all') {
+      // Filter orders by type if needed
+      let filteredOrders = session.orders;
+      if (orderTypeFilter !== 'all') {
+        filteredOrders = session.orders.filter(order => {
           const orderType = order.orderType ?? OrderType.DineIn;
-          if (orderType !== orderTypeFilter) return;
-        }
+          return orderType === orderTypeFilter;
+        });
+      }
 
-        const orderWithContext: OrderWithContext = {
-          order,
-          sessionId: session.id,
-          tableNumber: session.tableNumber,
-          tableName: session.tableName,
-        };
+      // Skip session if no orders match the filter
+      if (filteredOrders.length === 0) return;
 
-        // Handle cancelled orders
-        if (order.status === OrderStatus.Cancelled) {
-          result.cancelled.push(orderWithContext);
-          totals.cancelled += order.total;
-          totalOrders++;
-          return;
-        }
+      // Create a filtered session copy
+      const filteredSession: TableSession = {
+        ...session,
+        orders: filteredOrders,
+      };
 
-        // Calculate confirmed items price only (status = 1)
-        const confirmedItemsPrice = order.items
-          ?.filter((i: { status: number }) => i.status === 1)
-          .reduce((sum: number, item: { totalPrice: number }) => sum + item.totalPrice, 0) || 0;
+      const column = getSessionColumn(filteredSession);
+      result[column].push(filteredSession);
 
-        // Check if there are pending items (status = 0)
-        const hasPendingItems = order.items?.some(
-          (item: { status: number }) => item.status === 0
-        ) || false;
+      // Calculate session total (confirmed items only)
+      const sessionTotal = filteredOrders.reduce((sum, order) => {
+        const orderTotal = order.items
+          ?.filter(i => i.status === 1)
+          .reduce((s, item) => s + item.totalPrice, 0) || 0;
+        return sum + orderTotal;
+      }, 0);
 
-        // Determine column based on pending items, then status, then isPaid
-        if (hasPendingItems) {
-          if (order.status === OrderStatus.Confirmed) {
-            result.confirmed.push(orderWithContext);
-            totals.confirmed += confirmedItemsPrice;
-          } else {
-            result.pending.push(orderWithContext);
-            totals.pending += confirmedItemsPrice;
-          }
-          const waitTime = Math.floor((now.getTime() - new Date(order.createdAt).getTime()) / 60000);
-          totalWaitTime += waitTime;
-          orderCount++;
-        } else if (order.isPaid) {
-          result.paid.push(orderWithContext);
-          totals.paid += confirmedItemsPrice;
-        } else if (order.status === OrderStatus.Confirmed) {
-          result.confirmed.push(orderWithContext);
-          totals.confirmed += confirmedItemsPrice;
-          const waitTime = Math.floor((now.getTime() - new Date(order.createdAt).getTime()) / 60000);
-          totalWaitTime += waitTime;
-          orderCount++;
-        } else if (order.status === OrderStatus.Pending) {
-          result.pending.push(orderWithContext);
-          totals.pending += confirmedItemsPrice;
-          const waitTime = Math.floor((now.getTime() - new Date(order.createdAt).getTime()) / 60000);
-          totalWaitTime += waitTime;
-          orderCount++;
-        }
+      totals[column] += sessionTotal;
+      totalSessions++;
+      totalAmount += sessionTotal;
 
-        totalOrders++;
-        totalAmount += confirmedItemsPrice;
-      });
+      // Calculate wait time for non-paid sessions
+      if (column !== 'paid' && column !== 'cancelled') {
+        const oldestOrder = filteredOrders.reduce((oldest, order) =>
+          new Date(order.createdAt) < new Date(oldest.createdAt) ? order : oldest
+        );
+        const waitTime = Math.floor((now.getTime() - new Date(oldestOrder.createdAt).getTime()) / 60000);
+        totalWaitTime += waitTime;
+        sessionCount++;
+      }
     });
 
-    // Sort by creation time
-    result.pending.sort((a, b) =>
-      new Date(b.order.createdAt).getTime() - new Date(a.order.createdAt).getTime()
-    );
-    result.confirmed.sort((a, b) =>
-      new Date(a.order.createdAt).getTime() - new Date(b.order.createdAt).getTime()
-    );
-    result.paid.sort((a, b) =>
-      new Date(b.order.paidAt || b.order.createdAt).getTime() -
-      new Date(a.order.paidAt || a.order.createdAt).getTime()
-    );
-    result.cancelled.sort((a, b) =>
-      new Date(b.order.createdAt).getTime() - new Date(a.order.createdAt).getTime()
-    );
+    // Sort sessions by creation time
+    result.pending.sort((a, b) => {
+      const aTime = Math.min(...a.orders.map(o => new Date(o.createdAt).getTime()));
+      const bTime = Math.min(...b.orders.map(o => new Date(o.createdAt).getTime()));
+      return bTime - aTime; // Newest first
+    });
+    result.confirmed.sort((a, b) => {
+      const aTime = Math.min(...a.orders.map(o => new Date(o.createdAt).getTime()));
+      const bTime = Math.min(...b.orders.map(o => new Date(o.createdAt).getTime()));
+      return aTime - bTime; // Oldest first (should be processed first)
+    });
+    result.paid.sort((a, b) => {
+      const aTime = Math.max(...a.orders.map(o => new Date(o.paidAt || o.createdAt).getTime()));
+      const bTime = Math.max(...b.orders.map(o => new Date(o.paidAt || o.createdAt).getTime()));
+      return bTime - aTime; // Recently paid first
+    });
 
     return {
-      ordersByColumn: result,
+      sessionsByColumn: result,
       columnTotals: totals,
       stats: {
-        totalOrders,
+        totalSessions,
         totalAmount,
-        avgWaitTime: orderCount > 0 ? Math.round(totalWaitTime / orderCount) : 0,
+        avgWaitTime: sessionCount > 0 ? Math.round(totalWaitTime / sessionCount) : 0,
         pendingCount: result.pending.length,
         confirmedCount: result.confirmed.length,
         paidCount: result.paid.length,
@@ -239,7 +244,7 @@ export default function KanbanBoard({
       if (prevStatsRef.current.pendingCount !== stats.pendingCount) {
         newAnimating.add('pending');
       }
-      if (prevStatsRef.current.totalOrders !== stats.totalOrders) {
+      if (prevStatsRef.current.totalSessions !== stats.totalSessions) {
         newAnimating.add('total');
       }
       if (newAnimating.size > 0) {
@@ -247,8 +252,8 @@ export default function KanbanBoard({
         setTimeout(() => setAnimatingStats(new Set()), 300);
       }
     }
-    prevStatsRef.current = { pendingCount: stats.pendingCount, totalOrders: stats.totalOrders };
-  }, [stats.pendingCount, stats.totalOrders]);
+    prevStatsRef.current = { pendingCount: stats.pendingCount, totalSessions: stats.totalSessions };
+  }, [stats.pendingCount, stats.totalSessions]);
 
   const showToast = useCallback((message: string, type: 'success' | 'error') => {
     const id = `toast-${Date.now()}`;
@@ -260,39 +265,39 @@ export default function KanbanBoard({
 
   const handleDragStart = useCallback((event: DragStartEvent) => {
     const { active } = event;
-    const orderId = active.id as string;
+    const sessionId = active.id as string;
 
-    for (const columnOrders of Object.values(ordersByColumn)) {
-      const found = columnOrders.find((o) => o.order.id === orderId);
+    for (const columnSessions of Object.values(sessionsByColumn)) {
+      const found = columnSessions.find((s) => s.id === sessionId);
       if (found) {
-        setActiveOrder(found);
+        setActiveSession(found);
         break;
       }
     }
-  }, [ordersByColumn]);
+  }, [sessionsByColumn]);
 
   const handleDragEnd = useCallback(async (event: DragEndEvent) => {
     const { active, over } = event;
-    setActiveOrder(null);
+    setActiveSession(null);
 
     if (!over || isProcessing) return;
 
-    const orderId = active.id as string;
+    const sessionId = active.id as string;
     const targetColumn = over.id as string;
 
     let currentColumn = '';
-    let orderContext: OrderWithContext | null = null;
+    let session: TableSession | null = null;
 
-    for (const [columnId, columnOrders] of Object.entries(ordersByColumn)) {
-      const found = columnOrders.find((o) => o.order.id === orderId);
+    for (const [columnId, columnSessions] of Object.entries(sessionsByColumn)) {
+      const found = columnSessions.find((s) => s.id === sessionId);
       if (found) {
         currentColumn = columnId;
-        orderContext = found;
+        session = found;
         break;
       }
     }
 
-    if (!orderContext || currentColumn === targetColumn) return;
+    if (!session || currentColumn === targetColumn) return;
 
     const validTransitions: Record<string, string[]> = {
       pending: ['confirmed', 'cancelled'],
@@ -310,28 +315,34 @@ export default function KanbanBoard({
 
     try {
       if (targetColumn === 'confirmed' && currentColumn === 'pending') {
-        await onConfirmOrder(orderId);
-        showToast('Заказ подтверждён', 'success');
+        // Confirm all pending orders in session
+        const pendingOrders = session.orders.filter(o => o.status === OrderStatus.Pending);
+        for (const order of pendingOrders) {
+          await onConfirmOrder(order.id);
+        }
+        showToast('Все заказы подтверждены', 'success');
       } else if (targetColumn === 'paid' && currentColumn === 'confirmed') {
-        onMarkOrderPaid(orderContext.sessionId, orderId);
+        onMarkSessionPaid(session.id);
       } else if (targetColumn === 'cancelled') {
-        await onCancelOrder(orderId);
-        showToast('Заказ отменён', 'success');
+        // Cancel all orders in session
+        for (const order of session.orders) {
+          if (order.status !== OrderStatus.Cancelled) {
+            await onCancelOrder(order.id);
+          }
+        }
+        showToast('Все заказы отменены', 'success');
       }
     } catch (error) {
-      console.error('Error processing order transition:', error);
+      console.error('Error processing session transition:', error);
       showToast('Ошибка при обработке', 'error');
     } finally {
       setIsProcessing(false);
     }
-  }, [ordersByColumn, isProcessing, onConfirmOrder, onMarkOrderPaid, onCancelOrder, showToast]);
+  }, [sessionsByColumn, isProcessing, onConfirmOrder, onMarkSessionPaid, onCancelOrder, showToast]);
 
-  const handleOrderClick = useCallback((order: SessionOrder, sessionId: string) => {
-    const session = sessions.find((s) => s.id === sessionId);
-    if (session) {
-      onOrderClick(order, session);
-    }
-  }, [sessions, onOrderClick]);
+  const handleSessionClick = useCallback((session: TableSession) => {
+    onSessionClick(session);
+  }, [onSessionClick]);
 
   return (
     <div className="relative">
@@ -339,15 +350,15 @@ export default function KanbanBoard({
       <div className="mb-4 bg-slate-900 rounded border border-slate-800">
         <div className="flex items-center justify-between px-4 py-3">
           <div className="flex items-center gap-6">
-            {/* Total Orders */}
+            {/* Total Tables */}
             <div className="flex items-center gap-2">
               <svg className="w-4 h-4 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 10h16M4 14h16M4 18h16" />
               </svg>
               <span className={`text-lg font-bold text-white tabular-nums ${animatingStats.has('total') ? 'animate-counter-pulse' : ''}`}>
-                {stats.totalOrders}
+                {stats.totalSessions}
               </span>
-              <span className="text-xs text-slate-500">заказов</span>
+              <span className="text-xs text-slate-500">столов</span>
             </div>
 
             {/* Divider */}
@@ -422,32 +433,29 @@ export default function KanbanBoard({
       >
         <div className="flex gap-3 overflow-x-auto pb-4">
           {columns.map((column) => (
-            <KanbanColumn
+            <SessionColumn
               key={column.id}
               id={column.id}
               title={column.title}
               icon={column.icon}
-              orders={ordersByColumn[column.id] || []}
-              count={ordersByColumn[column.id]?.length || 0}
+              sessions={sessionsByColumn[column.id] || []}
+              count={sessionsByColumn[column.id]?.length || 0}
               totalAmount={columnTotals[column.id] || 0}
               headerColor={column.headerColor}
               isCancelledColumn={column.id === 'cancelled'}
-              onOrderClick={handleOrderClick}
+              onSessionClick={handleSessionClick}
               onConfirmOrder={onConfirmOrder}
-              onMarkOrderPaid={onMarkOrderPaid}
+              onMarkSessionPaid={onMarkSessionPaid}
               onCancelOrder={onCancelOrder}
             />
           ))}
         </div>
 
         <DragOverlay>
-          {activeOrder ? (
+          {activeSession ? (
             <div className="opacity-95 shadow-xl">
-              <KanbanCard
-                order={activeOrder.order}
-                sessionId={activeOrder.sessionId}
-                tableNumber={activeOrder.tableNumber}
-                tableName={activeOrder.tableName}
+              <SessionCard
+                session={activeSession}
                 onClick={() => {}}
               />
             </div>

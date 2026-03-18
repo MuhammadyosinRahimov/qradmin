@@ -209,6 +209,7 @@ export interface OrderItem {
   status: OrderItemStatus;
   createdAt?: string;
   cancelReason?: string;
+  note?: string;
 }
 
 export interface Order {
