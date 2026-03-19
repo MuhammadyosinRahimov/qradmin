@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Inter } from "next/font/google";
 import "./globals.css";
 import ConnectionStatus from "@/components/ui/ConnectionStatus";
+import { ToastProvider } from "@/components/ui/ToastProvider";
 
 const inter = Inter({
   subsets: ["latin", "cyrillic"],
@@ -31,8 +32,10 @@ export default function RootLayout({
         />
       </head>
       <body className={`${inter.variable} antialiased`}>
-        <ConnectionStatus />
-        {children}
+        <ToastProvider>
+          <ConnectionStatus />
+          {children}
+        </ToastProvider>
       </body>
     </html>
   );
