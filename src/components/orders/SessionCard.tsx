@@ -149,8 +149,11 @@ export default function SessionCard({
     if (!onConfirmOrder || isProcessing) return;
     setIsProcessing(true);
     try {
-      // Confirm all pending orders
-      const pendingOrders = activeOrders.filter(o => o.status === OrderStatus.Pending);
+      // Confirm all pending orders AND orders with pending items
+      const pendingOrders = activeOrders.filter(o =>
+        o.status === OrderStatus.Pending ||
+        o.items?.some(i => i.status === 0)
+      );
       for (const order of pendingOrders) {
         await onConfirmOrder(order.id);
       }
@@ -334,7 +337,7 @@ export default function SessionCard({
                     <span className="text-[11px] font-medium text-slate-700 tabular-nums">
                       {formatPrice(orderTotal)} TJS
                     </span>
-                    {columnId === 'pending' && order.status === OrderStatus.Pending && (
+                    {columnId === 'pending' && (order.status === OrderStatus.Pending || pendingItems.length > 0) && (
                       <button
                         onClick={(e) => handleConfirmSingleOrder(e, order.id)}
                         disabled={isProcessing}
