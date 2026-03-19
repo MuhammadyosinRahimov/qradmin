@@ -47,7 +47,7 @@ export default function LoginPage() {
               </svg>
             </div>
             <div>
-              <h1 className="text-2xl font-bold tracking-tight">QR Меню</h1>
+              <h1 className="text-2xl font-bold tracking-tight">Yalla eats</h1>
               <p className="text-indigo-200 text-sm">Система управления</p>
             </div>
           </div>
@@ -148,7 +148,7 @@ export default function LoginPage() {
               </Button>
             </form>
 
-            {/* Demo credentials */}
+            {/* Demo credentials
             <div className="mt-8 p-4 bg-gradient-to-r from-indigo-50 to-purple-50 rounded-xl border border-indigo-100">
               <div className="flex items-start gap-3">
                 <div className="w-8 h-8 rounded-lg bg-indigo-100 flex items-center justify-center flex-shrink-0">
@@ -163,7 +163,7 @@ export default function LoginPage() {
                 </div>
               </div>
             </div>
-          </div>
+          </div> */}
 
           {/* Footer */}
           <p className="text-center text-sm text-slate-400 mt-8">

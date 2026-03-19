@@ -9,7 +9,7 @@ const inter = Inter({
 });
 
 export const metadata: Metadata = {
-  title: "QR Меню - Админ панель",
+  title: "Yalla eats - Админ панель",
   description: "Панель управления QR-меню для ресторанов",
 };
 
