@@ -202,6 +202,12 @@ export default function OrderDetailModal({
                         {item.productName}
                         {item.sizeName && <span className="text-amber-700 font-normal"> ({item.sizeName})</span>}
                       </p>
+                      {item.selectedAddons && item.selectedAddons.length > 0 && (
+                        <p className="text-xs text-amber-700 truncate">+ {item.selectedAddons.join(', ')}</p>
+                      )}
+                      {item.note && (
+                        <p className="text-xs text-amber-600 italic">📝 {item.note}</p>
+                      )}
                       {item.createdAt && item.createdAt !== order.createdAt && (
                         <p className="text-[10px] text-amber-600">Добавлено в {formatTime(item.createdAt)}</p>
                       )}

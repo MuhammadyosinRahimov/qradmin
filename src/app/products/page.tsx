@@ -348,6 +348,15 @@ export default function ProductsPage() {
                     Неактивен
                   </span>
                 )}
+                {/* Sizes badge */}
+                {product.sizesCount && product.sizesCount > 0 && (
+                  <span className="absolute bottom-2 left-2 px-2 py-1 bg-purple-600 text-white text-xs font-medium rounded-lg flex items-center gap-1">
+                    <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5l-5-5m5 5v-4m0 4h-4" />
+                    </svg>
+                    {product.sizesCount} разм.
+                  </span>
+                )}
               </div>
 
               <div className="p-4">
@@ -357,6 +366,26 @@ export default function ProductsPage() {
                     <span className="text-sm text-gray-500">{product.categoryName}</span>
                     {product.menuName && (
                       <span className="block text-xs text-blue-500">{product.menuName}</span>
+                    )}
+                    {/* Show sizes as small badges */}
+                    {product.sizes && product.sizes.length > 0 && (
+                      <div className="flex flex-wrap gap-1 mt-1">
+                        {product.sizes.map((size) => (
+                          <span
+                            key={size.id}
+                            className={`inline-flex items-center px-1.5 py-0.5 text-xs rounded ${
+                              size.isDefault
+                                ? 'bg-purple-100 text-purple-700'
+                                : 'bg-gray-100 text-gray-600'
+                            }`}
+                          >
+                            {size.name}
+                            {size.priceModifier > 0 && (
+                              <span className="ml-0.5 opacity-70">+{size.priceModifier}</span>
+                            )}
+                          </span>
+                        ))}
+                      </div>
                     )}
                   </div>
                   <div className="flex gap-1">

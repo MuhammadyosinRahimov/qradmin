@@ -361,22 +361,29 @@ export default function SessionCard({
                     const itemIsPending = item.status === 0;
                     const itemIsConfirmed = item.status === 1;
                     return (
-                      <div key={item.id} className="flex items-center gap-2 text-[10px]">
-                        <span className={`flex-shrink-0 w-3 h-3 rounded border flex items-center justify-center ${
-                          itemIsConfirmed
-                            ? 'bg-emerald-500 border-emerald-500 text-white'
-                            : 'border-slate-300 bg-white'
-                        }`}>
-                          {itemIsConfirmed && (
-                            <svg className="w-2 h-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
-                            </svg>
-                          )}
-                        </span>
-                        <span className={`flex-1 truncate ${itemIsPending ? 'text-amber-700 font-medium' : 'text-slate-600'}`}>
-                          {item.productName}
-                        </span>
-                        <span className="text-slate-400 tabular-nums">×{item.quantity}</span>
+                      <div key={item.id} className="text-[10px]">
+                        <div className="flex items-center gap-2">
+                          <span className={`flex-shrink-0 w-3 h-3 rounded border flex items-center justify-center ${
+                            itemIsConfirmed
+                              ? 'bg-emerald-500 border-emerald-500 text-white'
+                              : 'border-slate-300 bg-white'
+                          }`}>
+                            {itemIsConfirmed && (
+                              <svg className="w-2 h-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
+                              </svg>
+                            )}
+                          </span>
+                          <span className={`flex-1 truncate ${itemIsPending ? 'text-amber-700 font-medium' : 'text-slate-600'}`}>
+                            {item.productName}
+                          </span>
+                          <span className="text-slate-400 tabular-nums">×{item.quantity}</span>
+                        </div>
+                        {item.note && (
+                          <div className="ml-5 mt-0.5 text-[9px] text-amber-600 italic truncate">
+                            📝 {item.note}
+                          </div>
+                        )}
                       </div>
                     );
                   })}

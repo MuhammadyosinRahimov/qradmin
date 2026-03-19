@@ -144,8 +144,9 @@ export interface Product {
   categoryName: string;
   menuId?: string;
   menuName?: string;
-  sizes: ProductSize[];
-  addons: ProductAddon[];
+  sizesCount?: number;
+  sizes?: ProductSize[];
+  addons?: ProductAddon[];
 }
 
 export interface ProductSize {

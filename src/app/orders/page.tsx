@@ -10,6 +10,7 @@ import { getOrders, updateOrderStatus, getSignalRUrl, cancelOrderItem, confirmPe
 import { Order, OrderStatus, OrderItemStatus, OrderItemStatusNames, Restaurant, TableSession, TableSessionStatus, OrderType, OrderTypeNames, SessionOrder } from '@/types';
 import { useAuthStore } from '@/stores/authStore';
 import KanbanBoard from '@/components/orders/KanbanBoard';
+import { useToast } from '@/components/ui/ToastProvider';
 
 // Normalize order status (handle both string and number values from API)
 const normalizeOrderStatus = (status: OrderStatus | string | number): OrderStatus => {
@@ -62,6 +63,7 @@ export default function OrdersPage() {
   const [soundEnabled, setSoundEnabled] = useState(false);
   const [cancellingItemId, setCancellingItemId] = useState<string | null>(null);
   const { getRestaurantId, admin } = useAuthStore();
+  const toast = useToast();
 
   // Pause orders state
   const [isPauseModalOpen, setIsPauseModalOpen] = useState(false);
@@ -382,6 +384,12 @@ export default function OrdersPage() {
       // Play notification sound
       playNotificationSound();
 
+      // Show in-app toast notification
+      toast.warning(
+        `Стол №${data.tableNumber} хочет оплатить наличными`,
+        `${data.tableName} - ${data.amount} TJS`
+      );
+
       // Show browser notification
       if ('Notification' in window && Notification.permission === 'granted') {
         new Notification('Запрос оплаты наличными', {
@@ -412,11 +420,19 @@ export default function OrdersPage() {
       // Play notification sound
       playNotificationSound();
 
+      // Build item info string
+      const itemInfo = data.CancelledItem.SizeName
+        ? `${data.CancelledItem.ItemName} (${data.CancelledItem.SizeName})`
+        : data.CancelledItem.ItemName;
+
+      // Show in-app toast notification (error style for cancellation)
+      toast.error(
+        `Отмена: ${itemInfo} x${data.CancelledItem.Quantity}`,
+        `Стол №${data.TableNumber}${data.CancelledItem.Reason ? ` - "${data.CancelledItem.Reason}"` : ''}`
+      );
+
       // Show browser notification
       if ('Notification' in window && Notification.permission === 'granted') {
-        const itemInfo = data.CancelledItem.SizeName
-          ? `${data.CancelledItem.ItemName} (${data.CancelledItem.SizeName})`
-          : data.CancelledItem.ItemName;
         new Notification(`Отмена позиции - Стол №${data.TableNumber}`, {
           body: `${itemInfo} x${data.CancelledItem.Quantity}${data.CancelledItem.Reason ? ` - "${data.CancelledItem.Reason}"` : ''}`,
           icon: '/favicon.ico',
