@@ -85,6 +85,24 @@ export default function OrdersPage() {
   // Kanban selected order
   const [selectedKanbanOrder, setSelectedKanbanOrder] = useState<{ order: SessionOrder; session: TableSession } | null>(null);
 
+  // Cancellation notification modal
+  const [cancelNotification, setCancelNotification] = useState<{
+    itemName: string;
+    sizeName: string | null;
+    quantity: number;
+    totalPrice: number;
+    reason: string | null;
+    tableNumber: number;
+  } | null>(null);
+
+  // Cash payment notification modal
+  const [cashPaymentNotification, setCashPaymentNotification] = useState<{
+    tableNumber: number;
+    tableName: string;
+    amount: number;
+    guestPhone?: string;
+  } | null>(null);
+
   // Initialize AudioContext on user interaction
   const initAudio = useCallback(() => {
     if (!audioContextRef.current) {
@@ -380,15 +398,18 @@ export default function OrdersPage() {
       tableName: string;
       amount: number;
       requestedAt: string;
+      guestPhone?: string;
     }) => {
       // Play notification sound
       playNotificationSound();
 
-      // Show in-app toast notification
-      toast.warning(
-        `Стол №${data.tableNumber} хочет оплатить наличными`,
-        `${data.tableName} - ${data.amount} TJS`
-      );
+      // Open cash payment notification modal
+      setCashPaymentNotification({
+        tableNumber: data.tableNumber,
+        tableName: data.tableName,
+        amount: data.amount,
+        guestPhone: data.guestPhone,
+      });
 
       // Show browser notification
       if ('Notification' in window && Notification.permission === 'granted') {
@@ -420,19 +441,21 @@ export default function OrdersPage() {
       // Play notification sound
       playNotificationSound();
 
-      // Build item info string
-      const itemInfo = data.CancelledItem.SizeName
-        ? `${data.CancelledItem.ItemName} (${data.CancelledItem.SizeName})`
-        : data.CancelledItem.ItemName;
-
-      // Show in-app toast notification (error style for cancellation)
-      toast.error(
-        `Отмена: ${itemInfo} x${data.CancelledItem.Quantity}`,
-        `Стол №${data.TableNumber}${data.CancelledItem.Reason ? ` - "${data.CancelledItem.Reason}"` : ''}`
-      );
+      // Open cancellation notification modal
+      setCancelNotification({
+        itemName: data.CancelledItem.ItemName,
+        sizeName: data.CancelledItem.SizeName,
+        quantity: data.CancelledItem.Quantity,
+        totalPrice: data.CancelledItem.TotalPrice,
+        reason: data.CancelledItem.Reason,
+        tableNumber: data.TableNumber,
+      });
 
       // Show browser notification
       if ('Notification' in window && Notification.permission === 'granted') {
+        const itemInfo = data.CancelledItem.SizeName
+          ? `${data.CancelledItem.ItemName} (${data.CancelledItem.SizeName})`
+          : data.CancelledItem.ItemName;
         new Notification(`Отмена позиции - Стол №${data.TableNumber}`, {
           body: `${itemInfo} x${data.CancelledItem.Quantity}${data.CancelledItem.Reason ? ` - "${data.CancelledItem.Reason}"` : ''}`,
           icon: '/favicon.ico',
@@ -1825,6 +1848,132 @@ export default function OrdersPage() {
           </div>
         </div>
       </Modal>
+
+      {/* Cancellation notification modal */}
+      {cancelNotification && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[100] p-4">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden animate-in zoom-in-95 duration-200">
+            {/* Red header */}
+            <div className="bg-gradient-to-r from-red-500 to-red-600 px-6 py-4">
+              <div className="flex items-center gap-3">
+                <div className="w-12 h-12 rounded-full bg-white/20 flex items-center justify-center">
+                  <svg className="w-7 h-7 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                  </svg>
+                </div>
+                <div>
+                  <h2 className="text-xl font-bold text-white">Отмена позиции!</h2>
+                  <p className="text-red-100 text-sm">Стол №{cancelNotification.tableNumber}</p>
+                </div>
+              </div>
+            </div>
+
+            {/* Content */}
+            <div className="p-6">
+              <div className="bg-red-50 border border-red-200 rounded-xl p-4 mb-4">
+                <div className="flex items-start gap-3">
+                  <div className="w-10 h-10 rounded-lg bg-red-100 flex items-center justify-center flex-shrink-0">
+                    <svg className="w-5 h-5 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                  </div>
+                  <div className="flex-1">
+                    <p className="font-semibold text-red-900 text-lg">
+                      {cancelNotification.itemName}
+                      {cancelNotification.sizeName && (
+                        <span className="text-red-700 font-normal"> ({cancelNotification.sizeName})</span>
+                      )}
+                    </p>
+                    <p className="text-red-700 mt-1">
+                      Количество: <span className="font-semibold">{cancelNotification.quantity} шт.</span>
+                    </p>
+                    <p className="text-red-700">
+                      Сумма: <span className="font-semibold">{new Intl.NumberFormat('ru-RU').format(cancelNotification.totalPrice)} TJS</span>
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              {cancelNotification.reason && (
+                <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 mb-4">
+                  <p className="text-sm text-amber-700 font-medium mb-1">Причина отмены:</p>
+                  <p className="text-amber-900 italic">"{cancelNotification.reason}"</p>
+                </div>
+              )}
+
+              <Button
+                onClick={() => setCancelNotification(null)}
+                className="w-full"
+                variant="danger"
+              >
+                Понятно
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Cash payment notification modal */}
+      {cashPaymentNotification && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[100] p-4">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden animate-in zoom-in-95 duration-200">
+            {/* Green header */}
+            <div className="bg-gradient-to-r from-emerald-500 to-emerald-600 px-6 py-4">
+              <div className="flex items-center gap-3">
+                <div className="w-12 h-12 rounded-full bg-white/20 flex items-center justify-center">
+                  <svg className="w-7 h-7 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z" />
+                  </svg>
+                </div>
+                <div>
+                  <h2 className="text-xl font-bold text-white">Оплата наличными!</h2>
+                  <p className="text-emerald-100 text-sm">Стол №{cashPaymentNotification.tableNumber}</p>
+                </div>
+              </div>
+            </div>
+
+            {/* Content */}
+            <div className="p-6">
+              <div className="bg-emerald-50 border border-emerald-200 rounded-xl p-4 mb-4">
+                <div className="flex items-start gap-3">
+                  <div className="w-10 h-10 rounded-lg bg-emerald-100 flex items-center justify-center flex-shrink-0">
+                    <svg className="w-5 h-5 text-emerald-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                  </div>
+                  <div className="flex-1">
+                    <p className="font-semibold text-emerald-900 text-lg">
+                      {cashPaymentNotification.tableName}
+                    </p>
+                    <p className="text-emerald-700 mt-1 text-2xl font-bold">
+                      {new Intl.NumberFormat('ru-RU').format(cashPaymentNotification.amount)} TJS
+                    </p>
+                    {cashPaymentNotification.guestPhone && (
+                      <p className="text-emerald-600 mt-2 text-sm">
+                        Телефон: {cashPaymentNotification.guestPhone}
+                      </p>
+                    )}
+                  </div>
+                </div>
+              </div>
+
+              <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 mb-4">
+                <p className="text-amber-800 text-center font-medium">
+                  Гость ожидает официанта для оплаты наличными
+                </p>
+              </div>
+
+              <Button
+                onClick={() => setCashPaymentNotification(null)}
+                className="w-full"
+                variant="primary"
+              >
+                Понятно
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
     </AdminLayout>
   );
 }
