@@ -11,6 +11,34 @@ import { Order, OrderStatus, OrderItemStatus, OrderItemStatusNames, Restaurant, 
 import { useAuthStore } from '@/stores/authStore';
 import KanbanBoard from '@/components/orders/KanbanBoard';
 
+// Normalize order status (handle both string and number values from API)
+const normalizeOrderStatus = (status: OrderStatus | string | number): OrderStatus => {
+  if (typeof status === 'number') return status as OrderStatus;
+  const statusMap: Record<string, OrderStatus> = {
+    'Pending': OrderStatus.Pending,
+    'Confirmed': OrderStatus.Confirmed,
+    'Cancelled': OrderStatus.Cancelled,
+    '0': OrderStatus.Pending,
+    '1': OrderStatus.Confirmed,
+    '3': OrderStatus.Cancelled,
+  };
+  return statusMap[String(status)] ?? OrderStatus.Pending;
+};
+
+// Normalize order item status (handle both string and number values from API)
+const normalizeItemStatus = (status: OrderItemStatus | string | number): OrderItemStatus => {
+  if (typeof status === 'number') return status as OrderItemStatus;
+  const statusMap: Record<string, OrderItemStatus> = {
+    'Pending': OrderItemStatus.Pending,
+    'Active': OrderItemStatus.Active,
+    'Cancelled': OrderItemStatus.Cancelled,
+    '0': OrderItemStatus.Pending,
+    '1': OrderItemStatus.Active,
+    '2': OrderItemStatus.Cancelled,
+  };
+  return statusMap[String(status)] ?? OrderItemStatus.Pending;
+};
+
 const statusLabels: Record<OrderStatus, string> = {
   [OrderStatus.Pending]: 'Новый',
   [OrderStatus.Confirmed]: 'Подтверждён',
@@ -800,8 +828,8 @@ export default function OrdersPage() {
             <div className="p-6">
               {/* Status badges */}
               <div className="mb-4 flex items-center gap-2 flex-wrap">
-                <span className={`px-3 py-1 rounded-full text-sm font-medium ${statusColors[selectedKanbanOrder.order.status]}`}>
-                  {statusLabels[selectedKanbanOrder.order.status]}
+                <span className={`px-3 py-1 rounded-full text-sm font-medium ${statusColors[normalizeOrderStatus(selectedKanbanOrder.order.status)]}`}>
+                  {statusLabels[normalizeOrderStatus(selectedKanbanOrder.order.status)]}
                 </span>
                 {selectedKanbanOrder.order.isPaid && (
                   <span className="px-3 py-1 rounded-full text-sm font-medium bg-green-100 text-green-700">
@@ -845,21 +873,21 @@ export default function OrdersPage() {
                   <div
                     key={item.id}
                     className={`flex justify-between items-start p-2 rounded-lg ${
-                      item.status === OrderItemStatus.Cancelled ? 'bg-red-50 opacity-60' :
-                      item.status === OrderItemStatus.Pending ? 'bg-orange-50 border border-orange-200' : 'bg-gray-50'
+                      normalizeItemStatus(item.status) === OrderItemStatus.Cancelled ? 'bg-red-50 opacity-60' :
+                      normalizeItemStatus(item.status) === OrderItemStatus.Pending ? 'bg-orange-50 border border-orange-200' : 'bg-gray-50'
                     }`}
                   >
                     <div>
-                      <p className={`font-medium ${item.status === OrderItemStatus.Cancelled ? 'text-gray-400 line-through' : 'text-gray-900'}`}>
+                      <p className={`font-medium ${normalizeItemStatus(item.status) === OrderItemStatus.Cancelled ? 'text-gray-400 line-through' : 'text-gray-900'}`}>
                         {item.productName}
-                        {item.status === OrderItemStatus.Pending && (
+                        {normalizeItemStatus(item.status) === OrderItemStatus.Pending && (
                           <span className="ml-2 text-xs text-orange-500">(новое)</span>
                         )}
                       </p>
                       {item.sizeName && <p className="text-sm text-gray-500">{item.sizeName}</p>}
                       <p className="text-sm text-gray-500">x{item.quantity}</p>
                     </div>
-                    <span className={`font-medium ${item.status === OrderItemStatus.Cancelled ? 'text-gray-400 line-through' : 'text-gray-900'}`}>
+                    <span className={`font-medium ${normalizeItemStatus(item.status) === OrderItemStatus.Cancelled ? 'text-gray-400 line-through' : 'text-gray-900'}`}>
                       {formatPrice(item.totalPrice)} TJS
                     </span>
                   </div>
@@ -890,7 +918,7 @@ export default function OrdersPage() {
 
               {/* Actions */}
               <div className="mt-6 flex gap-3 flex-wrap">
-                {selectedKanbanOrder.order.hasPendingItems && selectedKanbanOrder.order.status !== OrderStatus.Cancelled && (
+                {selectedKanbanOrder.order.hasPendingItems && normalizeOrderStatus(selectedKanbanOrder.order.status) !== OrderStatus.Cancelled && (
                   <Button
                     onClick={async () => {
                       await confirmPendingItems(selectedKanbanOrder.order.id);
@@ -901,7 +929,7 @@ export default function OrdersPage() {
                     Подтвердить блюда
                   </Button>
                 )}
-                {selectedKanbanOrder.order.status === OrderStatus.Pending && (
+                {normalizeOrderStatus(selectedKanbanOrder.order.status) === OrderStatus.Pending && (
                   <Button
                     onClick={async () => {
                       await confirmPendingItems(selectedKanbanOrder.order.id);
@@ -913,7 +941,7 @@ export default function OrdersPage() {
                     Подтвердить заказ
                   </Button>
                 )}
-                {!selectedKanbanOrder.order.isPaid && selectedKanbanOrder.order.status !== OrderStatus.Cancelled && (
+                {!selectedKanbanOrder.order.isPaid && normalizeOrderStatus(selectedKanbanOrder.order.status) !== OrderStatus.Cancelled && (
                   <Button
                     variant="secondary"
                     onClick={() => {
@@ -924,7 +952,7 @@ export default function OrdersPage() {
                     Отметить оплаченным
                   </Button>
                 )}
-                {selectedKanbanOrder.order.status !== OrderStatus.Cancelled && (
+                {normalizeOrderStatus(selectedKanbanOrder.order.status) !== OrderStatus.Cancelled && (
                   <Button
                     variant="danger"
                     onClick={() => {
@@ -1143,7 +1171,7 @@ export default function OrdersPage() {
                 sessionOrders = sessionOrders.filter(order => Number(order.orderType || 0) === Number(orderTypeFilter));
               }
 
-              const hasPendingOrders = sessionOrders.some(o => o.status === OrderStatus.Pending);
+              const hasPendingOrders = sessionOrders.some(o => normalizeOrderStatus(o.status) === OrderStatus.Pending);
               const hasNewItems = sessionOrders.some(o => o.hasPendingItems);
 
               return (
@@ -1204,7 +1232,7 @@ export default function OrdersPage() {
                       <div
                         key={order.id}
                         className={`p-4 rounded-lg border-2 ${
-                          order.status === OrderStatus.Pending
+                          normalizeOrderStatus(order.status) === OrderStatus.Pending
                             ? 'bg-yellow-50 border-yellow-200'
                             : order.hasPendingItems
                               ? 'bg-orange-50 border-orange-200'
@@ -1235,8 +1263,8 @@ export default function OrdersPage() {
                                 Самовывоз
                               </span>
                             )}
-                            <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${statusColors[order.status]}`}>
-                              {statusLabels[order.status]}
+                            <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${statusColors[normalizeOrderStatus(order.status)]}`}>
+                              {statusLabels[normalizeOrderStatus(order.status)]}
                             </span>
                             {order.isPaid && (
                               <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-700">
@@ -1312,14 +1340,14 @@ export default function OrdersPage() {
                         <div className="space-y-1 mb-3">
                           {order.items.map((item) => (
                             <div key={item.id} className="flex justify-between text-sm">
-                              <span className={`${item.status === OrderItemStatus.Cancelled ? 'text-gray-400 line-through' : 'text-gray-700'}`}>
+                              <span className={`${normalizeItemStatus(item.status) === OrderItemStatus.Cancelled ? 'text-gray-400 line-through' : 'text-gray-700'}`}>
                                 {item.productName} x{item.quantity}
                                 {item.sizeName && <span className="text-gray-400"> ({item.sizeName})</span>}
-                                {item.status === OrderItemStatus.Pending && (
+                                {normalizeItemStatus(item.status) === OrderItemStatus.Pending && (
                                   <span className="ml-1 text-xs text-orange-500">(новое)</span>
                                 )}
                               </span>
-                              <span className={`${item.status === OrderItemStatus.Cancelled ? 'text-gray-400 line-through' : 'text-gray-900'}`}>
+                              <span className={`${normalizeItemStatus(item.status) === OrderItemStatus.Cancelled ? 'text-gray-400 line-through' : 'text-gray-900'}`}>
                                 {formatPrice(item.totalPrice)} TJS
                               </span>
                             </div>
@@ -1335,7 +1363,7 @@ export default function OrdersPage() {
                             <span className="ml-2 font-bold text-gray-900">{formatPrice(order.total)} TJS</span>
                           </div>
                           <div className="flex gap-2">
-                            {order.hasPendingItems && order.status !== OrderStatus.Cancelled && (
+                            {order.hasPendingItems && normalizeOrderStatus(order.status) !== OrderStatus.Cancelled && (
                               <Button
                                 size="sm"
                                 variant="secondary"
@@ -1344,15 +1372,15 @@ export default function OrdersPage() {
                                 Подтвердить блюда
                               </Button>
                             )}
-                            {getNextStatus(order.status) && (
+                            {getNextStatus(normalizeOrderStatus(order.status)) && (
                               <Button
                                 size="sm"
-                                onClick={() => handleStatusChange(order.id, getNextStatus(order.status)!)}
+                                onClick={() => handleStatusChange(order.id, getNextStatus(normalizeOrderStatus(order.status))!)}
                               >
-                                {statusLabels[getNextStatus(order.status)!]}
+                                {statusLabels[getNextStatus(normalizeOrderStatus(order.status))!]}
                               </Button>
                             )}
-                            {!order.isPaid && order.status !== OrderStatus.Cancelled && (
+                            {!order.isPaid && normalizeOrderStatus(order.status) !== OrderStatus.Cancelled && (
                               <Button
                                 size="sm"
                                 variant="secondary"
@@ -1589,8 +1617,8 @@ export default function OrdersPage() {
 
             <div className="p-6">
               <div className="mb-4 flex items-center gap-2">
-                <span className={`px-3 py-1 rounded-full text-sm font-medium ${statusColors[selectedOrder.status]}`}>
-                  {statusLabels[selectedOrder.status]}
+                <span className={`px-3 py-1 rounded-full text-sm font-medium ${statusColors[normalizeOrderStatus(selectedOrder.status)]}`}>
+                  {statusLabels[normalizeOrderStatus(selectedOrder.status)]}
                 </span>
                 {selectedOrder.hasPendingItems && (
                   <span className="px-3 py-1 rounded-full text-sm font-medium bg-orange-100 text-orange-700">
@@ -1600,7 +1628,7 @@ export default function OrdersPage() {
               </div>
 
               {/* Confirm pending items button */}
-              {selectedOrder.hasPendingItems && selectedOrder.status !== OrderStatus.Cancelled && (
+              {selectedOrder.hasPendingItems && normalizeOrderStatus(selectedOrder.status) !== OrderStatus.Cancelled && (
                 <div className="mb-4 p-3 bg-orange-50 rounded-lg flex items-center justify-between">
                   <p className="text-sm text-orange-700">Клиент добавил новые блюда</p>
                   <Button
@@ -1615,8 +1643,8 @@ export default function OrdersPage() {
               <h3 className="font-semibold text-gray-900 mb-3">Позиции заказа</h3>
               <div className="space-y-3 mb-6">
                 {selectedOrder.items.map((item) => {
-                  const isCancelled = item.status === OrderItemStatus.Cancelled;
-                  const isPending = item.status === OrderItemStatus.Pending;
+                  const isCancelled = normalizeItemStatus(item.status) === OrderItemStatus.Cancelled;
+                  const isPending = normalizeItemStatus(item.status) === OrderItemStatus.Pending;
 
                   return (
                     <div
@@ -1660,7 +1688,7 @@ export default function OrdersPage() {
                         <span className={`font-medium ${isCancelled ? 'text-gray-400 line-through' : 'text-gray-900'}`}>
                           {formatPrice(item.totalPrice)} TJS
                         </span>
-                        {!isCancelled && selectedOrder.status !== OrderStatus.Cancelled && (
+                        {!isCancelled && normalizeOrderStatus(selectedOrder.status) !== OrderStatus.Cancelled && (
                           <button
                             onClick={() => handleCancelItem(selectedOrder.id, item.id)}
                             disabled={cancellingItemId === item.id}
@@ -1701,18 +1729,18 @@ export default function OrdersPage() {
               </div>
 
               <div className="mt-6 flex gap-3">
-                {getNextStatus(selectedOrder.status) && (
+                {getNextStatus(normalizeOrderStatus(selectedOrder.status)) && (
                   <Button
                     className="flex-1"
                     onClick={() => {
-                      handleStatusChange(selectedOrder.id, getNextStatus(selectedOrder.status)!);
+                      handleStatusChange(selectedOrder.id, getNextStatus(normalizeOrderStatus(selectedOrder.status))!);
                       setSelectedOrder(null);
                     }}
                   >
-                    {statusLabels[getNextStatus(selectedOrder.status)!]}
+                    {statusLabels[getNextStatus(normalizeOrderStatus(selectedOrder.status))!]}
                   </Button>
                 )}
-                {selectedOrder.status !== OrderStatus.Cancelled && (
+                {normalizeOrderStatus(selectedOrder.status) !== OrderStatus.Cancelled && (
                     <Button
                       variant="danger"
                       onClick={() => {

@@ -182,17 +182,10 @@ export default function KanbanBoard({
       const column = getSessionColumn(filteredSession);
       result[column].push(filteredSession);
 
-      // Calculate session total (confirmed items only)
-      const sessionTotal = filteredOrders.reduce((sum, order) => {
-        const orderTotal = order.items
-          ?.filter(i => i.status === 1)
-          .reduce((s, item) => s + item.totalPrice, 0) || 0;
-        return sum + orderTotal;
-      }, 0);
-
-      totals[column] += sessionTotal;
+      // Use session.sessionTotal from backend
+      totals[column] += session.sessionTotal;
       totalSessions++;
-      totalAmount += sessionTotal;
+      totalAmount += session.sessionTotal;
 
       // Calculate wait time for non-paid sessions
       if (column !== 'paid' && column !== 'cancelled') {
