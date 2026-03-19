@@ -147,23 +147,7 @@ export default function LoginPage() {
                 Войти в систему
               </Button>
             </form>
-
-            {/* Demo credentials
-            <div className="mt-8 p-4 bg-gradient-to-r from-indigo-50 to-purple-50 rounded-xl border border-indigo-100">
-              <div className="flex items-start gap-3">
-                <div className="w-8 h-8 rounded-lg bg-indigo-100 flex items-center justify-center flex-shrink-0">
-                  <svg className="w-4 h-4 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                  </svg>
-                </div>
-                <div>
-                  <p className="text-sm font-semibold text-indigo-900 mb-1">Тестовые данные</p>
-                  <p className="text-sm text-indigo-700">Email: admin@qrmenu.com</p>
-                  <p className="text-sm text-indigo-700">Пароль: admin123</p>
-                </div>
-              </div>
-            </div>
-          </div> */}
+          </div>
 
           {/* Footer */}
           <p className="text-center text-sm text-slate-400 mt-8">
