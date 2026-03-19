@@ -118,6 +118,29 @@ export const uploadProductImage = (id: string, formData: FormData) =>
     headers: { 'Content-Type': 'multipart/form-data' },
   });
 
+// Product Sizes
+export const addProductSize = async (productId: string, data: {
+  name: string;
+  priceModifier: number;
+  isDefault: boolean;
+}) => {
+  const response = await api.post(`/admin/products/${productId}/sizes`, data);
+  return response.data;
+};
+
+export const updateProductSize = async (
+  productId: string,
+  sizeId: string,
+  data: { name: string; priceModifier: number; isDefault: boolean }
+) => {
+  const response = await api.put(`/admin/products/${productId}/sizes/${sizeId}`, data);
+  return response.data;
+};
+
+export const deleteProductSize = async (productId: string, sizeId: string) => {
+  await api.delete(`/admin/products/${productId}/sizes/${sizeId}`);
+};
+
 // Orders
 export const getOrders = (status?: number, restaurantId?: string) =>
   api.get('/admin/orders', { params: { status, restaurantId } });

@@ -7,8 +7,8 @@ import Input from '@/components/ui/Input';
 import Select from '@/components/ui/Select';
 import Modal from '@/components/ui/Modal';
 import ImageUpload from '@/components/ui/ImageUpload';
-import { getProducts, getCategories, getMenus, createProduct, updateProduct, deleteProduct, toggleProduct, uploadProductImage, getImageUrl } from '@/lib/api';
-import { Product, Category, Menu } from '@/types';
+import { getProducts, getProduct, getCategories, getMenus, createProduct, updateProduct, deleteProduct, toggleProduct, uploadProductImage, getImageUrl, addProductSize, updateProductSize, deleteProductSize } from '@/lib/api';
+import { Product, Category, Menu, ProductSize } from '@/types';
 
 export default function ProductsPage() {
   const [products, setProducts] = useState<Product[]>([]);
@@ -34,6 +34,13 @@ export default function ProductsPage() {
   });
   const [saving, setSaving] = useState(false);
   const [imageFile, setImageFile] = useState<File | null>(null);
+
+  // Size management state
+  const [productSizes, setProductSizes] = useState<ProductSize[]>([]);
+  const [showAddSize, setShowAddSize] = useState(false);
+  const [newSizeName, setNewSizeName] = useState('');
+  const [newSizePrice, setNewSizePrice] = useState(0);
+  const [sizeSaving, setSizeSaving] = useState(false);
 
   useEffect(() => {
     fetchCategories();
@@ -93,10 +100,15 @@ export default function ProductsPage() {
       calories: 0,
       prepTimeMinutes: 15,
     });
+    // Reset size state
+    setProductSizes([]);
+    setShowAddSize(false);
+    setNewSizeName('');
+    setNewSizePrice(0);
     setIsModalOpen(true);
   };
 
-  const openEditModal = (product: Product) => {
+  const openEditModal = async (product: Product) => {
     setEditingProduct(product);
     setImageFile(null);
     setFormData({
@@ -112,6 +124,18 @@ export default function ProductsPage() {
       calories: product.calories || 0,
       prepTimeMinutes: product.prepTimeMinutes || 15,
     });
+    // Reset size form state
+    setShowAddSize(false);
+    setNewSizeName('');
+    setNewSizePrice(0);
+    // Load product with sizes
+    try {
+      const response = await getProduct(product.id);
+      setProductSizes(response.data.sizes || []);
+    } catch (error) {
+      console.error('Error loading product sizes:', error);
+      setProductSizes([]);
+    }
     setIsModalOpen(true);
   };
 
@@ -172,6 +196,56 @@ export default function ProductsPage() {
       await fetchProducts();
     } catch (error) {
       console.error('Error toggling product:', error);
+    }
+  };
+
+  // Size management functions
+  const handleAddSize = async () => {
+    if (!editingProduct || !newSizeName.trim()) return;
+    setSizeSaving(true);
+    try {
+      const newSize = await addProductSize(editingProduct.id, {
+        name: newSizeName.trim(),
+        priceModifier: newSizePrice,
+        isDefault: productSizes.length === 0,
+      });
+      setProductSizes([...productSizes, newSize]);
+      setNewSizeName('');
+      setNewSizePrice(0);
+      setShowAddSize(false);
+    } catch (error) {
+      console.error('Error adding size:', error);
+    } finally {
+      setSizeSaving(false);
+    }
+  };
+
+  const handleUpdateSize = async (sizeId: string, field: string, value: string | number | boolean) => {
+    const size = productSizes.find((s) => s.id === sizeId);
+    if (!size || !editingProduct) return;
+
+    const updated = { ...size, [field]: value };
+    try {
+      await updateProductSize(editingProduct.id, sizeId, {
+        name: updated.name,
+        priceModifier: updated.priceModifier,
+        isDefault: updated.isDefault,
+      });
+      setProductSizes(productSizes.map((s) => (s.id === sizeId ? updated : s)));
+    } catch (error) {
+      console.error('Error updating size:', error);
+    }
+  };
+
+  const handleDeleteSize = async (sizeId: string) => {
+    if (!editingProduct) return;
+    if (!confirm('Удалить этот размер?')) return;
+
+    try {
+      await deleteProductSize(editingProduct.id, sizeId);
+      setProductSizes(productSizes.filter((s) => s.id !== sizeId));
+    } catch (error) {
+      console.error('Error deleting size:', error);
     }
   };
 
@@ -466,6 +540,116 @@ export default function ProductsPage() {
             onChange={(file) => setImageFile(file)}
             onClear={() => setFormData({ ...formData, imageUrl: '' })}
           />
+
+          {/* Секция размеров - показывать только при редактировании */}
+          {editingProduct && (
+            <div className="space-y-3">
+              <div className="flex items-center justify-between">
+                <label className="text-sm font-medium text-gray-700">Размеры</label>
+                <button
+                  type="button"
+                  onClick={() => setShowAddSize(true)}
+                  className="text-sm text-blue-600 hover:text-blue-700"
+                >
+                  + Добавить размер
+                </button>
+              </div>
+
+              {/* Список размеров */}
+              {productSizes.length > 0 && (
+                <div className="space-y-2">
+                  {productSizes.map((size) => (
+                    <div key={size.id} className="flex items-center gap-2 p-2 bg-gray-50 rounded-lg">
+                      <input
+                        type="text"
+                        value={size.name}
+                        onChange={(e) => handleUpdateSize(size.id, 'name', e.target.value)}
+                        className="flex-1 px-2 py-1 text-sm border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-500"
+                        placeholder="Название"
+                      />
+                      <div className="flex items-center gap-1">
+                        <span className="text-sm text-gray-500">+</span>
+                        <input
+                          type="number"
+                          value={size.priceModifier}
+                          onChange={(e) => handleUpdateSize(size.id, 'priceModifier', parseFloat(e.target.value) || 0)}
+                          className="w-20 px-2 py-1 text-sm border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-500"
+                          placeholder="Цена"
+                        />
+                        <span className="text-sm text-gray-500">₽</span>
+                      </div>
+                      <label className="flex items-center gap-1 text-sm text-gray-600 whitespace-nowrap">
+                        <input
+                          type="checkbox"
+                          checked={size.isDefault}
+                          onChange={(e) => handleUpdateSize(size.id, 'isDefault', e.target.checked)}
+                          className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                        />
+                        По умолч.
+                      </label>
+                      <button
+                        type="button"
+                        onClick={() => handleDeleteSize(size.id)}
+                        className="p-1 text-red-500 hover:bg-red-50 rounded"
+                        title="Удалить"
+                      >
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                        </svg>
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {productSizes.length === 0 && !showAddSize && (
+                <p className="text-sm text-gray-500 italic">Размеры не добавлены</p>
+              )}
+
+              {/* Форма добавления нового размера */}
+              {showAddSize && (
+                <div className="flex items-center gap-2 p-2 border-2 border-dashed border-gray-300 rounded-lg">
+                  <input
+                    type="text"
+                    value={newSizeName}
+                    onChange={(e) => setNewSizeName(e.target.value)}
+                    placeholder="Название размера"
+                    className="flex-1 px-2 py-1 text-sm border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-500"
+                  />
+                  <div className="flex items-center gap-1">
+                    <span className="text-sm text-gray-500">+</span>
+                    <input
+                      type="number"
+                      value={newSizePrice}
+                      onChange={(e) => setNewSizePrice(parseFloat(e.target.value) || 0)}
+                      placeholder="0"
+                      className="w-20 px-2 py-1 text-sm border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-500"
+                    />
+                    <span className="text-sm text-gray-500">₽</span>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={handleAddSize}
+                    disabled={sizeSaving || !newSizeName.trim()}
+                    className="px-3 py-1 text-sm bg-blue-600 text-white rounded hover:bg-blue-700 disabled:opacity-50"
+                  >
+                    {sizeSaving ? '...' : 'Добавить'}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setShowAddSize(false);
+                      setNewSizeName('');
+                      setNewSizePrice(0);
+                    }}
+                    className="px-3 py-1 text-sm bg-gray-200 text-gray-700 rounded hover:bg-gray-300"
+                  >
+                    Отмена
+                  </button>
+                </div>
+              )}
+            </div>
+          )}
 
           <div className="grid grid-cols-2 gap-4">
             <Input
