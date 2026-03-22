@@ -266,3 +266,13 @@ a:focus-visible {
   border-color: #cbd5e1;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
 }
+
+/* New item highlight animation */
+@keyframes new-item-highlight {
+  0%, 100% { background-color: transparent; }
+  50% { background-color: rgba(34, 197, 94, 0.15); }
+}
+
+.animate-new-item {
+  animation: new-item-highlight 1s ease-in-out 3;
+}

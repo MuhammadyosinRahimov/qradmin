@@ -100,21 +100,30 @@ export default function KanbanCard({
     return new Intl.NumberFormat('ru-RU').format(price);
   };
 
-  // Get items by status
-  const { activeItems, pendingItems, confirmedItems, displayItems, remainingCount } = useMemo(() => {
-    const active = order.items.filter(i => i.status !== 2);
+  // Get items by status - show ALL items including cancelled
+  const { allItems, pendingItems, confirmedItems, cancelledItems, displayItems, remainingCount } = useMemo(() => {
+    const all = order.items;
     const pending = order.items.filter(i => i.status === 0);
     const confirmed = order.items.filter(i => i.status === 1);
-    const display = active.slice(0, 3);
-    const remaining = active.length - 3;
+    const cancelled = order.items.filter(i => i.status === 2);
+    const display = all.slice(0, 3);
+    const remaining = all.length - 3;
     return {
-      activeItems: active,
+      allItems: all,
       pendingItems: pending,
       confirmedItems: confirmed,
+      cancelledItems: cancelled,
       displayItems: display,
       remainingCount: remaining > 0 ? remaining : 0,
     };
   }, [order.items]);
+
+  // Check if item was added recently (last 30 seconds)
+  const isRecentItem = (item: { createdAt?: string }) => {
+    if (!item.createdAt) return false;
+    const secondsAgo = (Date.now() - new Date(item.createdAt).getTime()) / 1000;
+    return secondsAgo < 30;
+  };
 
   // Calculate prices
   const { confirmedItemsPrice, pendingItemsPrice, totalPrice, hasPendingPrice } = useMemo(() => {
@@ -241,6 +250,11 @@ export default function KanbanCard({
             Доп. заказ
           </span>
         )}
+        {cancelledItems.length > 0 && (
+          <span className="text-[10px] px-1.5 py-0.5 font-medium bg-red-100 text-red-600 rounded">
+            {cancelledItems.length} отмен.
+          </span>
+        )}
         {order.wantsCashPayment && (
           <span className="text-[10px] px-1.5 py-0.5 font-medium bg-slate-100 text-slate-600 rounded">
             Наличные
@@ -277,27 +291,47 @@ export default function KanbanCard({
           {displayItems.map((item) => {
             const isPending = item.status === 0;
             const isConfirmed = item.status === 1;
+            const itemIsCancelled = item.status === 2;
+            const itemIsNew = isRecentItem(item);
             return (
-              <div key={item.id} className="flex items-center gap-2 text-[11px]">
+              <div key={item.id} className={`flex items-center gap-2 text-[11px] ${itemIsNew ? 'animate-new-item rounded px-1 -mx-1' : ''} ${itemIsCancelled ? 'opacity-60' : ''}`}>
                 {/* Checkbox indicator */}
                 <span className={`flex-shrink-0 w-3.5 h-3.5 rounded border flex items-center justify-center ${
-                  isConfirmed
-                    ? 'bg-emerald-500 border-emerald-500 text-white'
-                    : 'border-slate-300 bg-white'
+                  itemIsCancelled
+                    ? 'bg-red-400 border-red-400 text-white'
+                    : isConfirmed
+                      ? 'bg-emerald-500 border-emerald-500 text-white'
+                      : 'border-slate-300 bg-white'
                 }`}>
-                  {isConfirmed && (
+                  {itemIsCancelled ? (
+                    <svg className="w-2.5 h-2.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                  ) : isConfirmed && (
                     <svg className="w-2.5 h-2.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
                     </svg>
                   )}
                 </span>
                 {/* Item name */}
-                <span className={`flex-1 truncate ${isPending ? 'text-amber-700 font-medium' : 'text-slate-600'}`}>
+                <span className={`flex-1 truncate ${
+                  itemIsCancelled
+                    ? 'line-through text-red-600'
+                    : isPending
+                      ? 'text-amber-700 font-medium'
+                      : 'text-slate-600'
+                }`}>
                   {item.productName}
-                  {item.note && <span className="text-slate-400 ml-0.5" title={item.note}>*</span>}
+                  {item.note && <span className={`ml-0.5 ${itemIsCancelled ? 'text-red-400' : 'text-slate-400'}`} title={item.note}>*</span>}
                 </span>
+                {/* NEW badge */}
+                {itemIsNew && !itemIsCancelled && (
+                  <span className="text-[8px] px-1 py-0.5 bg-green-500 text-white rounded animate-pulse font-bold">
+                    NEW
+                  </span>
+                )}
                 {/* Quantity */}
-                <span className="text-slate-400 tabular-nums flex-shrink-0">×{item.quantity}</span>
+                <span className={`tabular-nums flex-shrink-0 ${itemIsCancelled ? 'text-red-400' : 'text-slate-400'}`}>×{item.quantity}</span>
               </div>
             );
           })}

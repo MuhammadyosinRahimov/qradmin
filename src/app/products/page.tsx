@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useMemo } from 'react';
 import AdminLayout from '@/components/layout/AdminLayout';
 import Button from '@/components/ui/Button';
 import Input from '@/components/ui/Input';
@@ -17,6 +17,8 @@ export default function ProductsPage() {
   const [loading, setLoading] = useState(true);
   const [selectedCategory, setSelectedCategory] = useState<string>('');
   const [selectedMenu, setSelectedMenu] = useState<string>('');
+  const [sortBy, setSortBy] = useState<'name' | 'price' | 'availability'>('availability');
+  const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc');
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
   const [formData, setFormData] = useState({
@@ -41,6 +43,26 @@ export default function ProductsPage() {
   const [newSizeName, setNewSizeName] = useState('');
   const [newSizePrice, setNewSizePrice] = useState(0);
   const [sizeSaving, setSizeSaving] = useState(false);
+
+  // Sorted products based on current sort settings
+  const sortedProducts = useMemo(() => {
+    return [...products].sort((a, b) => {
+      let cmp = 0;
+      switch (sortBy) {
+        case 'name':
+          cmp = a.name.localeCompare(b.name, 'ru');
+          break;
+        case 'price':
+          cmp = (a.discountPrice || a.basePrice) - (b.discountPrice || b.basePrice);
+          break;
+        case 'availability':
+          // Unavailable items first when ascending
+          cmp = (a.isAvailable === b.isAvailable) ? 0 : a.isAvailable ? 1 : -1;
+          break;
+      }
+      return sortDirection === 'asc' ? cmp : -cmp;
+    });
+  }, [products, sortBy, sortDirection]);
 
   useEffect(() => {
     fetchCategories();
@@ -288,6 +310,33 @@ export default function ProductsPage() {
           ]}
           className="max-w-xs"
         />
+        <Select
+          id="sort-by"
+          label="Сортировка"
+          value={sortBy}
+          onChange={(e) => setSortBy(e.target.value as 'name' | 'price' | 'availability')}
+          options={[
+            { value: 'availability', label: 'По доступности' },
+            { value: 'name', label: 'По названию' },
+            { value: 'price', label: 'По цене' },
+          ]}
+          className="max-w-xs"
+        />
+        <div className="flex items-end">
+          <button
+            onClick={() => setSortDirection(d => d === 'asc' ? 'desc' : 'asc')}
+            className="p-2 h-10 rounded-lg bg-white border border-gray-300 hover:bg-gray-50 transition-colors flex items-center justify-center"
+            title={sortDirection === 'asc' ? 'По возрастанию' : 'По убыванию'}
+          >
+            <svg className="w-5 h-5 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              {sortDirection === 'asc' ? (
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 15l7-7 7 7" />
+              ) : (
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+              )}
+            </svg>
+          </button>
+        </div>
       </div>
 
       {loading ? (
@@ -314,7 +363,7 @@ export default function ProductsPage() {
         </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {products.map((product) => (
+          {sortedProducts.map((product) => (
             <div
               key={product.id}
               className={`bg-white rounded-xl overflow-hidden shadow-sm ${!product.isAvailable ? 'opacity-60' : ''}`}

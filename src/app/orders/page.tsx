@@ -508,12 +508,28 @@ export default function OrdersPage() {
     connection
       .start()
       .then(() => {
-        console.log('[SignalR] Connected successfully');
-        connection.invoke('JoinAdminGroup').then(() => {
-          console.log('[SignalR] Joined Admins group');
-        });
+        console.log('[SignalR] Connected successfully, state:', connection.state);
+        connection.invoke('JoinAdminGroup')
+          .then(() => {
+            console.log('[SignalR] Joined Admins group successfully');
+          })
+          .catch((err) => console.error('[SignalR] Failed to join Admins group:', err));
       })
       .catch((err) => console.error('[SignalR] Connection error:', err));
+
+    // Log connection state changes
+    connection.onclose((err) => {
+      console.log('[SignalR] Connection closed', err);
+    });
+
+    connection.onreconnecting((err) => {
+      console.log('[SignalR] Reconnecting...', err);
+    });
+
+    connection.onreconnected((connectionId) => {
+      console.log('[SignalR] Reconnected, re-joining Admins group');
+      connection.invoke('JoinAdminGroup').catch(console.error);
+    });
 
     connectionRef.current = connection;
 

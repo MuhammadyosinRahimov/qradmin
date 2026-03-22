@@ -311,9 +311,18 @@ export default function SessionCard({
             const orderItems = order.items || [];
             const pendingItems = orderItems.filter(i => i.status === 0);
             const confirmedItems = orderItems.filter(i => i.status === 1);
-            const displayItems = isExpanded ? orderItems.filter(i => i.status !== 2) : orderItems.filter(i => i.status !== 2).slice(0, 2);
-            const remainingCount = orderItems.filter(i => i.status !== 2).length - 2;
+            const cancelledItems = orderItems.filter(i => i.status === 2);
+            // Show ALL items including cancelled (not hiding them anymore)
+            const displayItems = isExpanded ? orderItems : orderItems.slice(0, 3);
+            const remainingCount = orderItems.length - 3;
             const orderTotal = orderItems.filter(i => i.status !== 2).reduce((sum, i) => sum + i.totalPrice, 0);
+
+            // Check if item was added recently (last 30 seconds)
+            const isRecentItem = (item: { createdAt?: string }) => {
+              if (!item.createdAt) return false;
+              const secondsAgo = (Date.now() - new Date(item.createdAt).getTime()) / 1000;
+              return secondsAgo < 30;
+            };
             const isPending = order.status === OrderStatus.Pending || pendingItems.length > 0;
 
             return (
@@ -330,6 +339,11 @@ export default function SessionCard({
                     {pendingItems.length > 0 && (
                       <span className="text-[10px] px-1 py-0.5 bg-amber-100 text-amber-700 rounded">
                         +{pendingItems.length} новых
+                      </span>
+                    )}
+                    {cancelledItems.length > 0 && (
+                      <span className="text-[10px] px-1 py-0.5 bg-red-100 text-red-600 rounded">
+                        {cancelledItems.length} отмен.
                       </span>
                     )}
                   </div>
@@ -360,27 +374,46 @@ export default function SessionCard({
                   {displayItems.map((item) => {
                     const itemIsPending = item.status === 0;
                     const itemIsConfirmed = item.status === 1;
+                    const itemIsCancelled = item.status === 2;
+                    const itemIsNew = isRecentItem(item);
                     return (
-                      <div key={item.id} className="text-[10px]">
+                      <div key={item.id} className={`text-[10px] ${itemIsNew ? 'animate-new-item rounded px-1 -mx-1' : ''} ${itemIsCancelled ? 'opacity-60' : ''}`}>
                         <div className="flex items-center gap-2">
                           <span className={`flex-shrink-0 w-3 h-3 rounded border flex items-center justify-center ${
-                            itemIsConfirmed
-                              ? 'bg-emerald-500 border-emerald-500 text-white'
-                              : 'border-slate-300 bg-white'
+                            itemIsCancelled
+                              ? 'bg-red-400 border-red-400 text-white'
+                              : itemIsConfirmed
+                                ? 'bg-emerald-500 border-emerald-500 text-white'
+                                : 'border-slate-300 bg-white'
                           }`}>
-                            {itemIsConfirmed && (
+                            {itemIsCancelled ? (
+                              <svg className="w-2 h-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M6 18L18 6M6 6l12 12" />
+                              </svg>
+                            ) : itemIsConfirmed && (
                               <svg className="w-2 h-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
                               </svg>
                             )}
                           </span>
-                          <span className={`flex-1 truncate ${itemIsPending ? 'text-amber-700 font-medium' : 'text-slate-600'}`}>
+                          <span className={`flex-1 truncate ${
+                            itemIsCancelled
+                              ? 'line-through text-red-600'
+                              : itemIsPending
+                                ? 'text-amber-700 font-medium'
+                                : 'text-slate-600'
+                          }`}>
                             {item.productName}
                           </span>
-                          <span className="text-slate-400 tabular-nums">×{item.quantity}</span>
+                          {itemIsNew && !itemIsCancelled && (
+                            <span className="text-[8px] px-1 py-0.5 bg-green-500 text-white rounded animate-pulse font-bold">
+                              NEW
+                            </span>
+                          )}
+                          <span className={`tabular-nums ${itemIsCancelled ? 'text-red-400' : 'text-slate-400'}`}>×{item.quantity}</span>
                         </div>
                         {item.note && (
-                          <div className="ml-5 mt-0.5 text-[9px] text-amber-600 italic truncate">
+                          <div className={`ml-5 mt-0.5 text-[9px] italic truncate ${itemIsCancelled ? 'text-red-400' : 'text-amber-600'}`}>
                             📝 {item.note}
                           </div>
                         )}
