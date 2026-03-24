@@ -166,13 +166,79 @@ export enum OrderStatus {
   Pending = 0,
   Confirmed = 1,
   Cancelled = 3,
+  // JURA TEMPORARILY DISABLED
+  DeliveryJura = 4,
 }
 
 export const OrderStatusNames: Record<number, string> = {
   0: 'Ожидает',
   1: 'Подтверждён',
   3: 'Отменён',
+  // JURA TEMPORARILY DISABLED
+  4: 'Доставка Jura',
 };
+
+/*
+ * JURA TYPES TEMPORARILY DISABLED
+ * Uncomment when full Jura documentation is available
+ */
+
+// Jura status names (keeping for DB compatibility)
+export const JuraStatusNames: Record<number, string> = {
+  1: 'Поступило',
+  2: 'Водитель назначен',
+  4: 'Водитель на месте',
+  7: 'Исполняется',
+  9: 'Выполнен',
+  10: 'Отменен',
+  19: 'Назначение заказа',
+  20: 'Запланирован',
+  21: 'Возвращается',
+};
+
+// Jura live status (stub interface to prevent import errors)
+export interface JuraLiveStatus {
+  orderId: string;
+  juraOrderId?: string;
+  statusId?: number;
+  statusName?: string;
+  performerName?: string;
+  performerPhone?: string;
+  traccarDeviceId?: string;
+  tariffName?: string;
+  deliveryCost?: number;
+}
+
+// Jura driver position (stub interface)
+export interface JuraDriverPosition {
+  success: boolean;
+  lat?: number;
+  lng?: number;
+  speed?: number;
+  course?: number;
+  timestamp?: string;
+  message?: string;
+}
+
+// Jura batch status response (stub interface)
+export interface JuraBatchStatusResponse {
+  statuses: Record<string, JuraLiveStatus>;
+}
+
+// Jura types (stub interfaces)
+export interface JuraTariff {
+  id: number;
+  name: string;
+}
+
+export interface JuraAddress {
+  id?: string;
+  address: string;
+  title?: string;
+  body?: string;
+  lng: number;
+  lat: number;
+}
 
 export enum OrderType {
   DineIn = 0,
@@ -273,6 +339,15 @@ export interface SessionOrder {
   customerName?: string;
   customerPhone?: string;
   deliveryFee?: number;
+  // JURA TEMPORARILY DISABLED - keeping fields for backwards compatibility
+  juraOrderId?: string;
+  juraStatusId?: number;
+  juraStatusName?: string;
+  juraTariffName?: string;
+  juraDeliveryCost?: number;
+  juraPerformerName?: string;
+  juraPerformerPhone?: string;
+  juraTraccarDeviceId?: string;
 }
 
 export interface TableSession {

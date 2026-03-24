@@ -1,6 +1,6 @@
 import axios from 'axios';
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "https://yalla-co-menu-beckend-dev-47c9.twc1.net/api";
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5079/api';
 
 // Helper to build full image URL from relative path
 export const getImageUrl = (imageUrl: string | null | undefined): string | null => {
@@ -169,3 +169,110 @@ export const getSignalRUrl = () => {
   const baseUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5079/";
   return baseUrl.replace('/api', '') + '/hubs/orders';
 };
+
+/*
+ * JURA API TEMPORARILY DISABLED
+ * Uncomment when full Jura documentation is available
+ *
+// Jura Delivery API
+export const getJuraTariffs = () => api.get('/admin/jura/tariffs');
+
+export const calculateJuraDelivery = (data: {
+  tariffId: number;
+  phone: string;
+  fromAddress?: {
+    id?: string;
+    address: string;
+    title?: string;
+    body?: string;
+    lng: number;
+    lat: number;
+  };
+  toAddress?: {
+    id?: string;
+    address: string;
+    title?: string;
+    body?: string;
+    lng: number;
+    lat: number;
+  };
+}) => api.post('/admin/jura/calculate', data);
+
+export const createJuraDelivery = (data: {
+  orderId: string;
+  tariffId: number;
+  phone: string;
+  fromAddress: {
+    id?: string;
+    address: string;
+    title?: string;
+    body?: string;
+    lng: number;
+    lat: number;
+  };
+  toAddress: {
+    id?: string;
+    address: string;
+    title?: string;
+    body?: string;
+    lng: number;
+    lat: number;
+  };
+}) => api.post('/admin/jura/orders', data);
+
+export const getJuraOrderStatus = (orderId: string) =>
+  api.get(`/admin/jura/orders/${orderId}/status`);
+
+export const cancelJuraOrder = (orderId: string, reason: string) =>
+  api.post(`/admin/jura/orders/${orderId}/cancel`, { reason });
+
+export const searchJuraAddress = (text: string, divisionId: number = 6) =>
+  api.get(`/admin/jura/address/search?text=${encodeURIComponent(text)}&division_id=${divisionId}`);
+
+export const createDirectJuraOrder = (data: {
+  tariffId: number;
+  phone: string;
+  customerName?: string;
+  comment?: string;
+  fromAddress: {
+    id?: string;
+    address: string;
+    title?: string;
+    body?: string;
+    lng: number;
+    lat: number;
+  };
+  toAddress: {
+    id?: string;
+    address: string;
+    title?: string;
+    body?: string;
+    lng: number;
+    lat: number;
+  };
+}) => api.post('/admin/jura/orders/direct', data);
+
+// Batch get Jura order statuses (real-time from API)
+export const getJuraOrderStatuses = (orderIds: string[]) =>
+  api.get(`/admin/jura/integration/statuses?orderIds=${orderIds.join(',')}`);
+
+// Get driver position for Jura order
+export const getJuraDriverPosition = (orderId: string) =>
+  api.get(`/admin/jura/integration/position/${orderId}`);
+
+// Get receipt code for Jura order (code to give driver for package pickup)
+export const getJuraReceiptCode = (orderId: string) =>
+  api.get(`/admin/jura/orders/${orderId}/receipt-code`);
+*/
+
+// JURA STUB EXPORTS (to prevent import errors while Jura is disabled)
+export const getJuraTariffs = () => Promise.resolve({ data: [] });
+export const calculateJuraDelivery = () => Promise.resolve({ data: { price: 0 } });
+export const createJuraDelivery = () => Promise.resolve({ data: {} });
+export const getJuraOrderStatus = () => Promise.resolve({ data: {} });
+export const cancelJuraOrder = () => Promise.resolve({ data: {} });
+export const searchJuraAddress = () => Promise.resolve({ data: [] });
+export const createDirectJuraOrder = () => Promise.resolve({ data: {} });
+export const getJuraOrderStatuses = () => Promise.resolve({ data: { statuses: {} } });
+export const getJuraDriverPosition = () => Promise.resolve({ data: { success: false } });
+export const getJuraReceiptCode = () => Promise.resolve({ data: { success: false } });

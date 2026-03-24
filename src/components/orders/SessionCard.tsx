@@ -4,6 +4,26 @@ import { useState, useMemo } from 'react';
 import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import { TableSession, SessionOrder, OrderType, OrderStatus } from '@/types';
+// JURA TEMPORARILY DISABLED
+// import { JuraLiveStatus } from '@/types';
+// import { getJuraReceiptCode, getJuraDriverPosition } from '@/lib/api';
+
+// Normalize order status (handle both string and number values from API)
+const normalizeOrderStatus = (status: OrderStatus | string | number): OrderStatus => {
+  if (typeof status === 'number') return status as OrderStatus;
+  const statusMap: Record<string, OrderStatus> = {
+    'Pending': OrderStatus.Pending,
+    'Confirmed': OrderStatus.Confirmed,
+    'Cancelled': OrderStatus.Cancelled,
+    // JURA TEMPORARILY DISABLED
+    // 'DeliveryJura': OrderStatus.DeliveryJura,
+    '0': OrderStatus.Pending,
+    '1': OrderStatus.Confirmed,
+    '3': OrderStatus.Cancelled,
+    // '4': OrderStatus.DeliveryJura,
+  };
+  return statusMap[String(status)] ?? OrderStatus.Pending;
+};
 
 interface SessionCardProps {
   session: TableSession;
@@ -12,6 +32,8 @@ interface SessionCardProps {
   onConfirmOrder?: (orderId: string) => Promise<void>;
   onMarkSessionPaid?: (sessionId: string) => void;
   onCancelOrder?: (orderId: string) => Promise<void>;
+  // JURA TEMPORARILY DISABLED
+  // juraLiveStatuses?: Record<string, JuraLiveStatus>;
 }
 
 const orderTypeConfig = {
@@ -32,6 +54,19 @@ const orderTypeConfig = {
   },
 };
 
+// JURA TEMPORARILY DISABLED
+// const getJuraStatusColor = (statusId?: number) => {
+//   switch (statusId) {
+//     case 1: return 'bg-slate-100 text-slate-700';      // Поступило
+//     case 2: return 'bg-blue-100 text-blue-700';        // Водитель назначен
+//     case 4: return 'bg-orange-100 text-orange-700';    // Водитель на месте
+//     case 7: return 'bg-violet-100 text-violet-700';    // Исполняется
+//     case 9: return 'bg-emerald-100 text-emerald-700';  // Выполнен
+//     case 10: return 'bg-red-100 text-red-700';         // Отменен
+//     default: return 'bg-slate-100 text-slate-700';
+//   }
+// };
+
 export default function SessionCard({
   session,
   columnId,
@@ -39,18 +74,25 @@ export default function SessionCard({
   onConfirmOrder,
   onMarkSessionPaid,
   onCancelOrder,
+  // JURA TEMPORARILY DISABLED
+  // juraLiveStatuses,
 }: SessionCardProps) {
   const [isProcessing, setIsProcessing] = useState(false);
   const [expandedOrders, setExpandedOrders] = useState<Set<string>>(new Set());
+  // JURA TEMPORARILY DISABLED
+  // const [receiptCode, setReceiptCode] = useState<string | null>(null);
+  // const [loadingReceiptCode, setLoadingReceiptCode] = useState(false);
+  // const [driverPosition, setDriverPosition] = useState<{ lat: number; lng: number } | null>(null);
+  // const [loadingPosition, setLoadingPosition] = useState(false);
 
   // Filter active orders (non-cancelled)
   const activeOrders = useMemo(() =>
-    session.orders.filter(o => o.status !== OrderStatus.Cancelled),
+    session.orders.filter(o => normalizeOrderStatus(o.status) !== OrderStatus.Cancelled),
     [session.orders]
   );
 
   const cancelledOrders = useMemo(() =>
-    session.orders.filter(o => o.status === OrderStatus.Cancelled),
+    session.orders.filter(o => normalizeOrderStatus(o.status) === OrderStatus.Cancelled),
     [session.orders]
   );
 
@@ -151,7 +193,7 @@ export default function SessionCard({
     try {
       // Confirm all pending orders AND orders with pending items
       const pendingOrders = activeOrders.filter(o =>
-        o.status === OrderStatus.Pending ||
+        normalizeOrderStatus(o.status) === OrderStatus.Pending ||
         o.items?.some(i => i.status === 0)
       );
       for (const order of pendingOrders) {
@@ -186,7 +228,7 @@ export default function SessionCard({
     try {
       // Cancel all active orders
       for (const order of activeOrders) {
-        if (order.status !== OrderStatus.Cancelled) {
+        if (normalizeOrderStatus(order.status) !== OrderStatus.Cancelled) {
           await onCancelOrder(order.id);
         }
       }
@@ -208,8 +250,18 @@ export default function SessionCard({
     });
   };
 
+  // JURA TEMPORARILY DISABLED
+  // // Fetch receipt code for Jura order
+  // const handleGetReceiptCode = async (e: React.MouseEvent, orderId: string) => { ... };
+  // // Fetch driver position for Jura order
+  // const handleGetDriverPosition = async (e: React.MouseEvent, orderId: string) => { ... };
+
+  // JURA TEMPORARILY DISABLED - always false
+  const isJuraSession = false; // activeOrders.every(o => normalizeOrderStatus(o.status) === OrderStatus.DeliveryJura || o.juraOrderId);
+
   // Determine which quick actions to show
   const showConfirmButton = columnId === 'pending';
+  // JURA TEMPORARILY DISABLED - always show pay button in confirmed column
   const showPayButton = columnId === 'confirmed';
   const showCancelButton = columnId === 'pending' || columnId === 'confirmed';
 
@@ -217,12 +269,15 @@ export default function SessionCard({
   const getBorderColor = () => {
     if (allCancelled) return 'border-l-red-400';
     if (columnId === 'paid') return 'border-l-emerald-500';
+    // JURA TEMPORARILY DISABLED
+    // if (columnId === 'deliveryJura') return 'border-l-violet-500';
     if (columnId === 'confirmed') return 'border-l-blue-500';
     return 'border-l-amber-500';
   };
 
   // Urgency classes
   const getUrgencyClasses = () => {
+    // JURA TEMPORARILY DISABLED - removed deliveryJura check
     if (allCancelled || columnId === 'paid') return '';
     if (isUrgent) return 'urgency-critical animate-pulse-urgent';
     if (isWarning) return 'urgency-warning animate-pulse-border';
@@ -287,12 +342,15 @@ export default function SessionCard({
             Новые позиции
           </span>
         )}
-        {activeOrders.some(o => o.wantsCashPayment) && (
+        {/* Hide cash payment badge for Jura orders */}
+        {!isJuraSession && activeOrders.some(o => o.wantsCashPayment) && (
           <span className="text-[10px] px-1.5 py-0.5 font-medium bg-slate-100 text-slate-600 rounded">
             Наличные
           </span>
         )}
       </div>
+
+      {/* JURA TEMPORARILY DISABLED - Entire Jura delivery status section commented out */}
 
       {/* Cancelled badge */}
       {allCancelled && (
@@ -323,7 +381,7 @@ export default function SessionCard({
               const secondsAgo = (Date.now() - new Date(item.createdAt).getTime()) / 1000;
               return secondsAgo < 30;
             };
-            const isPending = order.status === OrderStatus.Pending || pendingItems.length > 0;
+            const isPending = normalizeOrderStatus(order.status) === OrderStatus.Pending || pendingItems.length > 0;
 
             return (
               <div key={order.id} className={`rounded border ${isPending ? 'border-amber-200 bg-amber-50/30' : 'border-slate-100 bg-slate-50/30'}`}>
@@ -351,7 +409,7 @@ export default function SessionCard({
                     <span className="text-[11px] font-medium text-slate-700 tabular-nums">
                       {formatPrice(orderTotal)} TJS
                     </span>
-                    {columnId === 'pending' && (order.status === OrderStatus.Pending || pendingItems.length > 0) && (
+                    {columnId === 'pending' && (normalizeOrderStatus(order.status) === OrderStatus.Pending || pendingItems.length > 0) && (
                       <button
                         onClick={(e) => handleConfirmSingleOrder(e, order.id)}
                         disabled={isProcessing}
@@ -432,25 +490,28 @@ export default function SessionCard({
         </div>
       </div>
 
-      {/* Footer - total price and actions */}
+      {/* Footer - total price and actions (hide price for pure Jura sessions) */}
       <div className="px-2.5 py-2 border-t border-slate-100 bg-slate-50/50">
-        <div className="flex items-center justify-between">
-          <div className="flex items-baseline gap-1">
-            <span className="text-sm font-semibold text-slate-900 tabular-nums">
-              {formatPrice(session.sessionTotal)}
-            </span>
-            <span className="text-[10px] text-slate-400">TJS</span>
+        {/* Hide price section for pure Jura sessions */}
+        {!isJuraSession && (
+          <div className="flex items-center justify-between">
+            <div className="flex items-baseline gap-1">
+              <span className="text-sm font-semibold text-slate-900 tabular-nums">
+                {formatPrice(session.sessionTotal)}
+              </span>
+              <span className="text-[10px] text-slate-400">TJS</span>
+            </div>
+            {pendingTotal > 0 && (
+              <span className="text-[10px] text-amber-600 font-medium tabular-nums">
+                +{formatPrice(pendingTotal)} ожид.
+              </span>
+            )}
           </div>
-          {pendingTotal > 0 && (
-            <span className="text-[10px] text-amber-600 font-medium tabular-nums">
-              +{formatPrice(pendingTotal)} ожид.
-            </span>
-          )}
-        </div>
+        )}
 
         {/* Quick actions */}
         {(showConfirmButton || showPayButton || showCancelButton) && !allCancelled && (
-          <div className="flex gap-1.5 mt-2">
+          <div className={`flex gap-1.5 ${!isJuraSession ? 'mt-2' : ''}`}>
             {showConfirmButton && (
               <button
                 onClick={handleConfirmAll}

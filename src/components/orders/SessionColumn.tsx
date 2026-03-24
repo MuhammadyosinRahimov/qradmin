@@ -3,6 +3,8 @@
 import { useDroppable } from '@dnd-kit/core';
 import { SortableContext, verticalListSortingStrategy } from '@dnd-kit/sortable';
 import { TableSession } from '@/types';
+// JURA TEMPORARILY DISABLED
+// import { JuraLiveStatus } from '@/types';
 import SessionCard from './SessionCard';
 
 interface SessionColumnProps {
@@ -18,6 +20,8 @@ interface SessionColumnProps {
   onConfirmOrder?: (orderId: string) => Promise<void>;
   onMarkSessionPaid?: (sessionId: string) => void;
   onCancelOrder?: (orderId: string) => Promise<void>;
+  // JURA TEMPORARILY DISABLED
+  // juraLiveStatuses?: Record<string, JuraLiveStatus>;
 }
 
 const formatPrice = (price: number) => {
@@ -37,6 +41,8 @@ export default function SessionColumn({
   onConfirmOrder,
   onMarkSessionPaid,
   onCancelOrder,
+  // JURA TEMPORARILY DISABLED
+  // juraLiveStatuses,
 }: SessionColumnProps) {
   const { isOver, setNodeRef } = useDroppable({
     id,
@@ -114,6 +120,8 @@ export default function SessionColumn({
                 onConfirmOrder={onConfirmOrder}
                 onMarkSessionPaid={onMarkSessionPaid}
                 onCancelOrder={onCancelOrder}
+                // JURA TEMPORARILY DISABLED
+                // juraLiveStatuses={juraLiveStatuses}
               />
             ))
           )}

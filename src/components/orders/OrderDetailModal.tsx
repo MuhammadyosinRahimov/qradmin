@@ -1,9 +1,13 @@
 'use client';
 
-import { useMemo } from 'react';
+import { useState, useMemo } from 'react';
 import { SessionOrder, TableSession, OrderStatus, OrderType } from '@/types';
 import Modal from '../ui/Modal';
 import ActivityLog from './ActivityLog';
+// JURA TEMPORARILY DISABLED
+// import JuraDeliveryModal from './JuraDeliveryModal';
+// import { getJuraOrderStatus, cancelJuraOrder } from '@/lib/api';
+// import { JuraStatusNames } from '@/types';
 
 interface OrderDetailModalProps {
   isOpen: boolean;
@@ -13,6 +17,7 @@ interface OrderDetailModalProps {
   onConfirmOrder?: (orderId: string) => Promise<void>;
   onMarkOrderPaid?: (sessionId: string, orderId: string) => void;
   onCancelOrder?: (orderId: string) => Promise<void>;
+  onRefresh?: () => void;
 }
 
 const orderTypeLabels = {
@@ -30,6 +35,12 @@ export default function OrderDetailModal({
   onMarkOrderPaid,
   onCancelOrder,
 }: OrderDetailModalProps) {
+  // JURA TEMPORARILY DISABLED
+  // const [isJuraModalOpen, setIsJuraModalOpen] = useState(false);
+  // const [juraLiveStatus, setJuraLiveStatus] = useState<{...} | null>(null);
+  // const [loadingJuraStatus, setLoadingJuraStatus] = useState(false);
+  // const [cancellingJura, setCancellingJura] = useState(false);
+
   const formatPrice = (price: number) => {
     return new Intl.NumberFormat('ru-RU').format(price);
   };
@@ -75,8 +86,12 @@ export default function OrderDetailModal({
   const isCancelled = order.status === OrderStatus.Cancelled;
   const isPending = order.status === OrderStatus.Pending;
   const isConfirmed = order.status === OrderStatus.Confirmed;
+  // JURA TEMPORARILY DISABLED
+  // const isDeliveryJura = order.status === OrderStatus.DeliveryJura;
   const isPaid = order.isPaid;
   const orderType = order.orderType ?? OrderType.DineIn;
+  // JURA TEMPORARILY DISABLED
+  // const canCreateJuraDelivery = orderType === OrderType.Delivery && isConfirmed && !order.juraOrderId;
 
   const handleConfirm = async () => {
     if (onConfirmOrder) {
@@ -100,6 +115,7 @@ export default function OrderDetailModal({
   };
 
   return (
+    <>
     <Modal
       isOpen={isOpen}
       onClose={onClose}
@@ -154,6 +170,8 @@ export default function OrderDetailModal({
             </div>
           )}
 
+          {/* JURA TEMPORARILY DISABLED - Jura Delivery Status section removed */}
+
           {/* Items section */}
           <div className="mb-4">
             <h4 className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-3">Позиции</h4>
@@ -206,7 +224,7 @@ export default function OrderDetailModal({
                         <p className="text-xs text-amber-700 truncate">+ {item.selectedAddons.join(', ')}</p>
                       )}
                       {item.note && (
-                        <p className="text-xs text-amber-600 italic">📝 {item.note}</p>
+                        <p className="text-xs text-amber-600 italic">* {item.note}</p>
                       )}
                       {item.createdAt && item.createdAt !== order.createdAt && (
                         <p className="text-[10px] text-amber-600">Добавлено в {formatTime(item.createdAt)}</p>
@@ -336,6 +354,8 @@ export default function OrderDetailModal({
                   </button>
                 )}
 
+                {/* JURA TEMPORARILY DISABLED - Jura delivery button removed */}
+
                 {!isPaid && onCancelOrder && (
                   <button
                     onClick={handleCancel}
@@ -364,5 +384,8 @@ export default function OrderDetailModal({
         </div>
       </div>
     </Modal>
+
+    {/* JURA TEMPORARILY DISABLED - Jura Delivery Modal removed */}
+  </>
   );
 }

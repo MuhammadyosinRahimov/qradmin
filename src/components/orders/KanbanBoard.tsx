@@ -13,9 +13,26 @@ import {
   DragEndEvent,
 } from '@dnd-kit/core';
 import { sortableKeyboardCoordinates } from '@dnd-kit/sortable';
-import { TableSession, SessionOrder, OrderStatus, OrderType } from '@/types';
+import { TableSession, SessionOrder, OrderStatus, OrderType, JuraLiveStatus } from '@/types';
+import { getJuraOrderStatuses } from '@/lib/api';
 import SessionColumn from './SessionColumn';
 import SessionCard from './SessionCard';
+
+// Normalize order status (handle both string and number values from API)
+const normalizeOrderStatus = (status: OrderStatus | string | number): OrderStatus => {
+  if (typeof status === 'number') return status as OrderStatus;
+  const statusMap: Record<string, OrderStatus> = {
+    'Pending': OrderStatus.Pending,
+    'Confirmed': OrderStatus.Confirmed,
+    'Cancelled': OrderStatus.Cancelled,
+    'DeliveryJura': OrderStatus.DeliveryJura,
+    '0': OrderStatus.Pending,
+    '1': OrderStatus.Confirmed,
+    '3': OrderStatus.Cancelled,
+    '4': OrderStatus.DeliveryJura,
+  };
+  return statusMap[String(status)] ?? OrderStatus.Pending;
+};
 
 interface KanbanBoardProps {
   sessions: TableSession[];
@@ -26,9 +43,11 @@ interface KanbanBoardProps {
   onCancelOrder: (orderId: string) => Promise<void>;
   onOrderClick: (order: SessionOrder, session: TableSession) => void;
   onSessionClick: (session: TableSession) => void;
+  onRefreshNeeded?: () => void;
 }
 
 // Column configuration
+// JURA TEMPORARILY DISABLED - deliveryJura column commented out
 const columns = [
   {
     id: 'pending',
@@ -50,6 +69,17 @@ const columns = [
     ),
     headerColor: 'text-blue-600',
   },
+  // JURA TEMPORARILY DISABLED
+  // {
+  //   id: 'deliveryJura',
+  //   title: 'Доставка Jura',
+  //   icon: (
+  //     <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+  //       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4" />
+  //     </svg>
+  //   ),
+  //   headerColor: 'text-violet-600',
+  // },
   {
     id: 'paid',
     title: 'Оплачено',
@@ -81,7 +111,7 @@ function getSessionColumn(session: TableSession): string {
   const orders = session.orders || [];
 
   // Filter by active (non-cancelled) orders
-  const activeOrders = orders.filter(o => o.status !== OrderStatus.Cancelled);
+  const activeOrders = orders.filter(o => normalizeOrderStatus(o.status) !== OrderStatus.Cancelled);
 
   // If all orders are cancelled
   if (activeOrders.length === 0 && orders.length > 0) {
@@ -93,6 +123,14 @@ function getSessionColumn(session: TableSession): string {
     return 'pending';
   }
 
+  // JURA TEMPORARILY DISABLED
+  // Check if any order is in DeliveryJura status
+  // const hasJuraDelivery = activeOrders.some(o => normalizeOrderStatus(o.status) === OrderStatus.DeliveryJura);
+  // if (hasJuraDelivery) {
+  //   console.log('Found Jura order, status:', activeOrders.find(o => normalizeOrderStatus(o.status) === OrderStatus.DeliveryJura));
+  //   return 'deliveryJura';
+  // }
+
   // Check if all active orders are paid
   const allPaid = activeOrders.length > 0 && activeOrders.every(o => o.isPaid);
   if (allPaid) {
@@ -101,7 +139,7 @@ function getSessionColumn(session: TableSession): string {
 
   // Check if there are any pending orders or pending items
   const hasPending = activeOrders.some(o =>
-    o.status === OrderStatus.Pending ||
+    normalizeOrderStatus(o.status) === OrderStatus.Pending ||
     o.items?.some(i => i.status === 0)
   );
   if (hasPending) {
@@ -121,12 +159,14 @@ export default function KanbanBoard({
   onCancelOrder,
   onOrderClick,
   onSessionClick,
+  onRefreshNeeded,
 }: KanbanBoardProps) {
   const [activeSession, setActiveSession] = useState<TableSession | null>(null);
   const [isProcessing, setIsProcessing] = useState(false);
   const [toasts, setToasts] = useState<Array<{ id: string; message: string; type: 'success' | 'error' }>>([]);
   const prevStatsRef = useRef<{ pendingCount: number; totalSessions: number } | null>(null);
   const [animatingStats, setAnimatingStats] = useState<Set<string>>(new Set());
+  const [juraLiveStatuses, setJuraLiveStatuses] = useState<Record<string, JuraLiveStatus>>({});
 
   const sensors = useSensors(
     useSensor(PointerSensor, {
@@ -144,12 +184,14 @@ export default function KanbanBoard({
     const result: Record<string, TableSession[]> = {
       pending: [],
       confirmed: [],
+      deliveryJura: [],
       paid: [],
       cancelled: [],
     };
     const totals: Record<string, number> = {
       pending: 0,
       confirmed: 0,
+      deliveryJura: 0,
       paid: 0,
       cancelled: 0,
     };
@@ -209,6 +251,11 @@ export default function KanbanBoard({
       const bTime = Math.min(...b.orders.map(o => new Date(o.createdAt).getTime()));
       return aTime - bTime; // Oldest first (should be processed first)
     });
+    result.deliveryJura.sort((a, b) => {
+      const aTime = Math.min(...a.orders.map(o => new Date(o.createdAt).getTime()));
+      const bTime = Math.min(...b.orders.map(o => new Date(o.createdAt).getTime()));
+      return aTime - bTime; // Oldest first (should be delivered first)
+    });
     result.paid.sort((a, b) => {
       const aTime = Math.max(...a.orders.map(o => new Date(o.paidAt || o.createdAt).getTime()));
       const bTime = Math.max(...b.orders.map(o => new Date(o.paidAt || o.createdAt).getTime()));
@@ -224,6 +271,7 @@ export default function KanbanBoard({
         avgWaitTime: sessionCount > 0 ? Math.round(totalWaitTime / sessionCount) : 0,
         pendingCount: result.pending.length,
         confirmedCount: result.confirmed.length,
+        deliveryJuraCount: result.deliveryJura.length,
         paidCount: result.paid.length,
         cancelledCount: result.cancelled.length,
       },
@@ -247,6 +295,81 @@ export default function KanbanBoard({
     }
     prevStatsRef.current = { pendingCount: stats.pendingCount, totalSessions: stats.totalSessions };
   }, [stats.pendingCount, stats.totalSessions]);
+
+  // Collect Jura order IDs (memoized to use as dependency)
+  const juraOrderIdsKey = useMemo(() => {
+    const ids: string[] = [];
+    sessions.forEach(session => {
+      session.orders.forEach(order => {
+        if (normalizeOrderStatus(order.status) === OrderStatus.DeliveryJura && order.juraOrderId) {
+          ids.push(order.id);
+        }
+      });
+    });
+    return ids.join(',');
+  }, [sessions]);
+
+  // Track previous Jura statuses for comparison (using ref to avoid dependency issues)
+  const prevJuraStatusesRef = useRef<Record<string, JuraLiveStatus>>({});
+  const onRefreshNeededRef = useRef(onRefreshNeeded);
+  onRefreshNeededRef.current = onRefreshNeeded;
+
+  // JURA TEMPORARILY DISABLED - Polling disabled
+  // Poll Jura statuses for delivery orders
+  useEffect(() => {
+    // JURA TEMPORARILY DISABLED
+    setJuraLiveStatuses({});
+    return;
+
+    /*
+    const juraOrderIds = juraOrderIdsKey.split(',').filter(Boolean);
+
+    if (juraOrderIds.length === 0) {
+      setJuraLiveStatuses({});
+      return;
+    }
+
+    // Fetch statuses
+    const fetchJuraStatuses = async () => {
+      try {
+        const response = await getJuraOrderStatuses(juraOrderIds);
+        if (response.data?.statuses) {
+          const newStatuses = response.data.statuses;
+
+          // Check if any status has changed (compare with ref, not state)
+          let needsRefresh = false;
+          for (const orderId of Object.keys(newStatuses)) {
+            const newStatus = newStatuses[orderId];
+            const oldStatus = prevJuraStatusesRef.current[orderId];
+            if (!oldStatus || oldStatus.statusId !== newStatus.statusId) {
+              needsRefresh = true;
+              break;
+            }
+          }
+
+          // Update ref and state
+          prevJuraStatusesRef.current = newStatuses;
+          setJuraLiveStatuses(newStatuses);
+
+          // Refresh sessions only if status changed
+          if (needsRefresh && onRefreshNeededRef.current) {
+            onRefreshNeededRef.current();
+          }
+        }
+      } catch (error) {
+        console.error('Error fetching Jura statuses:', error);
+      }
+    };
+
+    // Fetch immediately only on first mount or when juraOrderIds change
+    fetchJuraStatuses();
+
+    // Poll every 30 seconds
+    const interval = setInterval(fetchJuraStatuses, 30000);
+
+    return () => clearInterval(interval);
+    */
+  }, [juraOrderIdsKey]);
 
   const showToast = useCallback((message: string, type: 'success' | 'error') => {
     const id = `toast-${Date.now()}`;
@@ -309,7 +432,7 @@ export default function KanbanBoard({
     try {
       if (targetColumn === 'confirmed' && currentColumn === 'pending') {
         // Confirm all pending orders in session
-        const pendingOrders = session.orders.filter(o => o.status === OrderStatus.Pending);
+        const pendingOrders = session.orders.filter(o => normalizeOrderStatus(o.status) === OrderStatus.Pending);
         for (const order of pendingOrders) {
           await onConfirmOrder(order.id);
         }
@@ -319,7 +442,7 @@ export default function KanbanBoard({
       } else if (targetColumn === 'cancelled') {
         // Cancel all orders in session
         for (const order of session.orders) {
-          if (order.status !== OrderStatus.Cancelled) {
+          if (normalizeOrderStatus(order.status) !== OrderStatus.Cancelled) {
             await onCancelOrder(order.id);
           }
         }
@@ -394,6 +517,12 @@ export default function KanbanBoard({
             }`}>
               {stats.confirmedCount} готов.
             </span>
+            {/* JURA TEMPORARILY DISABLED */}
+            {/* {stats.deliveryJuraCount > 0 && (
+              <span className="px-2.5 py-1 text-xs font-semibold bg-violet-500/20 text-violet-400 border border-violet-500/30 rounded tabular-nums">
+                {stats.deliveryJuraCount} дост.
+              </span>
+            )} */}
             <span className={`px-2.5 py-1 text-xs font-semibold rounded tabular-nums ${
               stats.paidCount > 0 ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30' : 'bg-slate-800 text-slate-500 border border-slate-700'
             }`}>
@@ -440,6 +569,8 @@ export default function KanbanBoard({
               onConfirmOrder={onConfirmOrder}
               onMarkSessionPaid={onMarkSessionPaid}
               onCancelOrder={onCancelOrder}
+              // JURA TEMPORARILY DISABLED
+              // juraLiveStatuses={juraLiveStatuses}
             />
           ))}
         </div>

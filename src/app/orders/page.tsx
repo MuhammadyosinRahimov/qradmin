@@ -7,10 +7,15 @@ import Button from '@/components/ui/Button';
 import Modal from '@/components/ui/Modal';
 import Input from '@/components/ui/Input';
 import { getOrders, updateOrderStatus, getSignalRUrl, cancelOrderItem, confirmPendingItems, getRestaurantStatus, toggleRestaurantOrders, getRestaurants, getTableSessions, markSessionPaid, closeTableSession, markOrderPaidInSession } from '@/lib/api';
+// JURA TEMPORARILY DISABLED
+// import { getJuraOrderStatus, cancelJuraOrder } from '@/lib/api';
 import { Order, OrderStatus, OrderItemStatus, OrderItemStatusNames, Restaurant, TableSession, TableSessionStatus, OrderType, OrderTypeNames, SessionOrder } from '@/types';
 import { useAuthStore } from '@/stores/authStore';
 import KanbanBoard from '@/components/orders/KanbanBoard';
 import { useToast } from '@/components/ui/ToastProvider';
+// JURA TEMPORARILY DISABLED
+// import JuraDeliveryModal from '@/components/orders/JuraDeliveryModal';
+// import CreateJuraOrderModal from '@/components/orders/CreateJuraOrderModal';
 
 // Normalize order status (handle both string and number values from API)
 const normalizeOrderStatus = (status: OrderStatus | string | number): OrderStatus => {
@@ -40,16 +45,19 @@ const normalizeItemStatus = (status: OrderItemStatus | string | number): OrderIt
   return statusMap[String(status)] ?? OrderItemStatus.Pending;
 };
 
-const statusLabels: Record<OrderStatus, string> = {
+// JURA TEMPORARILY DISABLED - using Partial<Record> since DeliveryJura is disabled
+const statusLabels: Partial<Record<OrderStatus, string>> = {
   [OrderStatus.Pending]: 'Новый',
   [OrderStatus.Confirmed]: 'Подтверждён',
   [OrderStatus.Cancelled]: 'Отменён',
+  // [OrderStatus.DeliveryJura]: 'Доставка Jura',
 };
 
-const statusColors: Record<OrderStatus, string> = {
+const statusColors: Partial<Record<OrderStatus, string>> = {
   [OrderStatus.Pending]: 'bg-yellow-100 text-yellow-800',
   [OrderStatus.Confirmed]: 'bg-blue-100 text-blue-800',
   [OrderStatus.Cancelled]: 'bg-red-100 text-red-800',
+  // [OrderStatus.DeliveryJura]: 'bg-violet-100 text-violet-800',
 };
 
 export default function OrdersPage() {
@@ -102,6 +110,25 @@ export default function OrdersPage() {
     amount: number;
     guestPhone?: string;
   } | null>(null);
+
+  // JURA TEMPORARILY DISABLED
+  // // Jura delivery modal state
+  // const [isJuraSelectModalOpen, setIsJuraSelectModalOpen] = useState(false);
+  // const [isJuraDeliveryModalOpen, setIsJuraDeliveryModalOpen] = useState(false);
+  // const [selectedJuraOrder, setSelectedJuraOrder] = useState<SessionOrder | null>(null);
+  // const [isCreateJuraModalOpen, setIsCreateJuraModalOpen] = useState(false);
+  // const [refreshingJuraStatus, setRefreshingJuraStatus] = useState(false);
+
+  // // Get eligible orders for Jura delivery (Delivery type, Confirmed, no juraOrderId)
+  // const eligibleJuraOrders = tableSessions.flatMap(session =>
+  //   session.orders
+  //     .filter(order =>
+  //       order.orderType === OrderType.Delivery &&
+  //       order.status === OrderStatus.Confirmed &&
+  //       !order.juraOrderId
+  //     )
+  //     .map(order => ({ order, session }))
+  // );
 
   // Initialize AudioContext on user interaction
   const initAudio = useCallback(() => {
@@ -319,6 +346,9 @@ export default function OrdersPage() {
   useEffect(() => {
     fetchRestaurantStatus();
   }, [fetchRestaurantStatus, selectedRestaurantId]);
+
+  // NOTE: Jura status polling is handled by KanbanBoard component using batch endpoint
+  // This avoids duplicate requests and is more efficient
 
   // Cancel item handler
   const handleCancelItem = async (orderId: string, itemId: string) => {
@@ -576,13 +606,43 @@ export default function OrdersPage() {
   };
 
   const getNextStatus = (status: OrderStatus): OrderStatus | null => {
-    const flow: Record<OrderStatus, OrderStatus | null> = {
+    // JURA TEMPORARILY DISABLED - using Partial<Record> since DeliveryJura is disabled
+    const flow: Partial<Record<OrderStatus, OrderStatus | null>> = {
       [OrderStatus.Pending]: OrderStatus.Confirmed,
       [OrderStatus.Confirmed]: null,
       [OrderStatus.Cancelled]: null,
+      // [OrderStatus.DeliveryJura]: null,
     };
-    return flow[status];
+    return flow[status] ?? null;
   };
+
+  // JURA TEMPORARILY DISABLED
+  // // Jura status color mapping
+  // const getJuraStatusColor = (statusId?: number) => {
+  //   switch (statusId) {
+  //     case 1: return 'bg-slate-100 text-slate-700';      // Поступило
+  //     case 2: return 'bg-blue-100 text-blue-700';        // Водитель назначен
+  //     case 4: return 'bg-orange-100 text-orange-700';    // Водитель на месте
+  //     case 7: return 'bg-violet-100 text-violet-700';    // Исполняется
+  //     case 9: return 'bg-emerald-100 text-emerald-700';  // Выполнен
+  //     case 10: return 'bg-red-100 text-red-700';         // Отменен
+  //     default: return 'bg-slate-100 text-slate-700';
+  //   }
+  // };
+
+  // // Refresh Jura order status
+  // const handleRefreshJuraStatus = async (orderId: string) => {
+  //   setRefreshingJuraStatus(true);
+  //   try {
+  //     await getJuraOrderStatus(orderId);
+  //     await fetchTableSessions();
+  //     toast.success('Статус обновлён');
+  //   } catch (error) {
+  //     toast.error('Ошибка при обновлении статуса');
+  //   } finally {
+  //     setRefreshingJuraStatus(false);
+  //   }
+  // };
 
   return (
     <AdminLayout>
@@ -682,6 +742,31 @@ export default function OrdersPage() {
             </svg>
             {soundEnabled ? 'Тест звука' : 'Включить звук'}
           </button>
+          {/* JURA TEMPORARILY DISABLED
+          <button
+            onClick={() => setIsCreateJuraModalOpen(true)}
+            className="px-4 py-2 rounded-lg font-medium transition-colors flex items-center gap-2 bg-violet-600 text-white hover:bg-violet-700"
+          >
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+            </svg>
+             Jura
+          </button>
+          {eligibleJuraOrders.length > 0 && (
+            <button
+              onClick={() => setIsJuraSelectModalOpen(true)}
+              className="px-4 py-2 rounded-lg font-medium transition-colors flex items-center gap-2 bg-violet-100 text-violet-700 border border-violet-300 hover:bg-violet-200"
+            >
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4" />
+              </svg>
+              Привязать к заказу
+              <span className="ml-1 px-1.5 py-0.5 text-xs bg-violet-600 text-white rounded-full">
+                {eligibleJuraOrders.length}
+              </span>
+            </button>
+          )}
+          */}
           <Button onClick={() => fetchTableSessions()} variant="secondary">
             <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
@@ -852,6 +937,9 @@ export default function OrdersPage() {
           onSessionClick={(session) => {
             setSelectedSession(session);
           }}
+          onRefreshNeeded={() => {
+            fetchTableSessions();
+          }}
         />
       )}
 
@@ -883,6 +971,7 @@ export default function OrdersPage() {
             <div className="p-6">
               {/* Status badges */}
               <div className="mb-4 flex items-center gap-2 flex-wrap">
+                {/* JURA TEMPORARILY DISABLED - removed Jura status conditional */}
                 <span className={`px-3 py-1 rounded-full text-sm font-medium ${statusColors[normalizeOrderStatus(selectedKanbanOrder.order.status)]}`}>
                   {statusLabels[normalizeOrderStatus(selectedKanbanOrder.order.status)]}
                 </span>
@@ -921,6 +1010,8 @@ export default function OrdersPage() {
                 </div>
               )}
 
+              {/* JURA TEMPORARILY DISABLED - Jura Delivery Status section removed */}
+
               {/* Order items */}
               <h3 className="font-semibold text-gray-900 mb-3">Позиции заказа</h3>
               <div className="space-y-2 mb-6">
@@ -949,29 +1040,31 @@ export default function OrdersPage() {
                 ))}
               </div>
 
-              {/* Totals */}
-              <div className="border-t border-gray-200 pt-4 space-y-2">
-                <div className="flex justify-between text-gray-600">
-                  <span>Подитог</span>
-                  <span>{formatPrice(selectedKanbanOrder.order.subtotal)} TJS</span>
-                </div>
-                <div className="flex justify-between text-gray-600">
-                  <span>Обслуживание</span>
-                  <span>{formatPrice(selectedKanbanOrder.order.serviceFeeShare)} TJS</span>
-                </div>
-                {selectedKanbanOrder.order.deliveryFee && selectedKanbanOrder.order.deliveryFee > 0 && (
+              {/* Totals - JURA TEMPORARILY DISABLED - always show totals */}
+              {true && (
+                <div className="border-t border-gray-200 pt-4 space-y-2">
                   <div className="flex justify-between text-gray-600">
-                    <span>Доставка</span>
-                    <span>{formatPrice(selectedKanbanOrder.order.deliveryFee)} TJS</span>
+                    <span>Подитог</span>
+                    <span>{formatPrice(selectedKanbanOrder.order.subtotal)} TJS</span>
                   </div>
-                )}
-                <div className="flex justify-between font-bold text-lg text-gray-900">
-                  <span>Итого</span>
-                  <span>{formatPrice(selectedKanbanOrder.order.total)} TJS</span>
+                  <div className="flex justify-between text-gray-600">
+                    <span>Обслуживание</span>
+                    <span>{formatPrice(selectedKanbanOrder.order.serviceFeeShare)} TJS</span>
+                  </div>
+                  {selectedKanbanOrder.order.deliveryFee && selectedKanbanOrder.order.deliveryFee > 0 && (
+                    <div className="flex justify-between text-gray-600">
+                      <span>Доставка</span>
+                      <span>{formatPrice(selectedKanbanOrder.order.deliveryFee)} TJS</span>
+                    </div>
+                  )}
+                  <div className="flex justify-between font-bold text-lg text-gray-900">
+                    <span>Итого</span>
+                    <span>{formatPrice(selectedKanbanOrder.order.total)} TJS</span>
+                  </div>
                 </div>
-              </div>
+              )}
 
-              {/* Actions */}
+              {/* Actions - JURA TEMPORARILY DISABLED - removed Jura conditional */}
               <div className="mt-6 flex gap-3 flex-wrap">
                 {selectedKanbanOrder.order.hasPendingItems && normalizeOrderStatus(selectedKanbanOrder.order.status) !== OrderStatus.Cancelled && (
                   <Button
@@ -1508,9 +1601,12 @@ export default function OrdersPage() {
                     <span className="text-2xl font-bold text-blue-600">#{selectedSession.tableNumber}</span>
                   </div>
                   <div>
-                    <h2 className="text-xl font-bold text-gray-900">
-                      {selectedSession.tableName || `Стол #${selectedSession.tableNumber}`}
-                    </h2>
+                    <div className="flex items-center gap-2">
+                      <h2 className="text-xl font-bold text-gray-900">
+                        {selectedSession.tableName || `Стол #${selectedSession.tableNumber}`}
+                      </h2>
+                      {/* JURA TEMPORARILY DISABLED - Jura badge removed */}
+                    </div>
                     <p className="text-gray-500">
                       {selectedSession.guestCount} {selectedSession.guestCount === 1 ? 'гость' : selectedSession.guestCount < 5 ? 'гостя' : 'гостей'} • Начало: {formatDate(selectedSession.startedAt)}
                     </p>
@@ -1530,11 +1626,16 @@ export default function OrdersPage() {
             <div className="p-6">
               <h3 className="font-semibold text-gray-900 mb-4">Заказы гостей</h3>
               <div className="space-y-4">
-                {selectedSession.orders.map((order) => (
+                {selectedSession.orders.map((order) => {
+                  // JURA TEMPORARILY DISABLED - always false
+                  const isJuraOrder = false; // !!order.juraOrderId;
+                  return (
                   <div
                     key={order.id}
                     className={`p-4 rounded-lg border-2 ${
-                      order.isPaid ? 'bg-green-50 border-green-200' : 'bg-orange-50 border-orange-200'
+                      isJuraOrder
+                        ? 'bg-violet-50 border-violet-200'
+                        : order.isPaid ? 'bg-green-50 border-green-200' : 'bg-orange-50 border-orange-200'
                     }`}
                   >
                     <div className="flex items-center justify-between mb-2">
@@ -1542,30 +1643,38 @@ export default function OrdersPage() {
                         <span className="font-medium text-gray-900">
                           {order.guestPhone || 'Гость'}
                         </span>
-                        <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${
-                          order.isPaid ? 'bg-green-100 text-green-700' : 'bg-orange-100 text-orange-700'
-                        }`}>
-                          {order.isPaid ? 'Оплачено' : 'Не оплачено'}
-                        </span>
-                        {order.wantsCashPayment && (
+                        {/* Hide payment status badge for Jura orders */}
+                        {!isJuraOrder && (
+                          <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${
+                            order.isPaid ? 'bg-green-100 text-green-700' : 'bg-orange-100 text-orange-700'
+                          }`}>
+                            {order.isPaid ? 'Оплачено' : 'Не оплачено'}
+                          </span>
+                        )}
+                        {/* Hide cash payment badge for Jura orders */}
+                        {!isJuraOrder && order.wantsCashPayment && (
                           <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-amber-100 text-amber-700">
                             Наличными
                           </span>
                         )}
-                        {order.isPaid && order.paidAt && (
+                        {!isJuraOrder && order.isPaid && order.paidAt && (
                           <span className="text-xs text-gray-500">
                             {formatDate(order.paidAt)}
                           </span>
                         )}
                       </div>
                       <div className="flex items-center gap-2">
-                        <div className="text-right">
-                          <span className="font-bold text-gray-900">{formatPrice(order.total)} TJS</span>
-                          <p className="text-xs text-gray-500">
-                            {formatPrice(order.subtotal)} + {formatPrice(order.serviceFeeShare)} обсл.
-                          </p>
-                        </div>
-                        {!order.isPaid && (
+                        {/* Hide price for Jura orders */}
+                        {!isJuraOrder && (
+                          <div className="text-right">
+                            <span className="font-bold text-gray-900">{formatPrice(order.total)} TJS</span>
+                            <p className="text-xs text-gray-500">
+                              {formatPrice(order.subtotal)} + {formatPrice(order.serviceFeeShare)} обсл.
+                            </p>
+                          </div>
+                        )}
+                        {/* Hide pay button for Jura orders */}
+                        {!isJuraOrder && !order.isPaid && (
                           <Button
                             size="sm"
                             variant="secondary"
@@ -1588,35 +1697,40 @@ export default function OrdersPage() {
                         </div>
                       ))}
                     </div>
+
+                    {/* JURA TEMPORARILY DISABLED - Jura Delivery Info section removed */}
                   </div>
-                ))}
+                  );
+                })}
               </div>
 
-              {/* Session totals */}
-              <div className="mt-6 p-4 bg-gray-50 rounded-lg">
-                <div className="flex justify-between mb-2">
-                  <span className="text-gray-600">Сумма заказов</span>
-                  <span className="font-medium text-gray-900">{formatPrice(selectedSession.sessionSubtotal)} TJS</span>
+              {/* Session totals - JURA TEMPORARILY DISABLED - always show */}
+              {true && (
+                <div className="mt-6 p-4 bg-gray-50 rounded-lg">
+                  <div className="flex justify-between mb-2">
+                    <span className="text-gray-600">Сумма заказов</span>
+                    <span className="font-medium text-gray-900">{formatPrice(selectedSession.sessionSubtotal)} TJS</span>
+                  </div>
+                  <div className="flex justify-between mb-2">
+                    <span className="text-gray-600">Обслуживание ({selectedSession.serviceFeePercent}%)</span>
+                    <span className="font-medium text-gray-900">{formatPrice(selectedSession.sessionServiceFee)} TJS</span>
+                  </div>
+                  <div className="flex justify-between mb-2 pt-2 border-t border-gray-200">
+                    <span className="text-gray-900 font-semibold">Итого стола</span>
+                    <span className="font-bold text-lg text-gray-900">{formatPrice(selectedSession.sessionTotal)} TJS</span>
+                  </div>
+                  <div className="flex justify-between mb-2">
+                    <span className="text-gray-600">Оплачено</span>
+                    <span className="font-medium text-green-600">{formatPrice(selectedSession.paidAmount)} TJS</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-gray-600">Осталось</span>
+                    <span className="font-medium text-orange-600">{formatPrice(selectedSession.unpaidAmount)} TJS</span>
+                  </div>
                 </div>
-                <div className="flex justify-between mb-2">
-                  <span className="text-gray-600">Обслуживание ({selectedSession.serviceFeePercent}%)</span>
-                  <span className="font-medium text-gray-900">{formatPrice(selectedSession.sessionServiceFee)} TJS</span>
-                </div>
-                <div className="flex justify-between mb-2 pt-2 border-t border-gray-200">
-                  <span className="text-gray-900 font-semibold">Итого стола</span>
-                  <span className="font-bold text-lg text-gray-900">{formatPrice(selectedSession.sessionTotal)} TJS</span>
-                </div>
-                <div className="flex justify-between mb-2">
-                  <span className="text-gray-600">Оплачено</span>
-                  <span className="font-medium text-green-600">{formatPrice(selectedSession.paidAmount)} TJS</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-gray-600">Осталось</span>
-                  <span className="font-medium text-orange-600">{formatPrice(selectedSession.unpaidAmount)} TJS</span>
-                </div>
-              </div>
+              )}
 
-              {/* Actions */}
+              {/* Actions - JURA TEMPORARILY DISABLED - always show payment button */}
               <div className="mt-6 flex gap-3">
                 {selectedSession.unpaidAmount > 0 && (
                   <Button
@@ -1990,6 +2104,112 @@ export default function OrdersPage() {
           </div>
         </div>
       )}
+
+      {/* JURA TEMPORARILY DISABLED - All Jura modals commented out */}
+      {/*
+      <Modal
+        isOpen={isJuraSelectModalOpen}
+        onClose={() => setIsJuraSelectModalOpen(false)}
+        title="Выберите заказ для доставки Jura"
+        size="lg"
+      >
+        <div className="p-4">
+          {eligibleJuraOrders.length === 0 ? (
+            <div className="text-center py-8">
+              <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-slate-100 flex items-center justify-center">
+                <svg className="w-8 h-8 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4" />
+                </svg>
+              </div>
+              <p className="text-slate-600 font-medium">Нет заказов для доставки</p>
+              <p className="text-slate-400 text-sm mt-1">
+                Заказы типа "Доставка" со статусом "Подтверждён" появятся здесь
+              </p>
+            </div>
+          ) : (
+            <div className="space-y-3">
+              {eligibleJuraOrders.map(({ order, session }) => (
+                <button
+                  key={order.id}
+                  onClick={() => {
+                    setSelectedJuraOrder(order);
+                    setIsJuraSelectModalOpen(false);
+                    setIsJuraDeliveryModalOpen(true);
+                  }}
+                  className="w-full p-4 bg-white border border-slate-200 rounded-lg hover:border-violet-300 hover:bg-violet-50 transition-colors text-left"
+                >
+                  <div className="flex items-start justify-between">
+                    <div>
+                      <div className="flex items-center gap-2 mb-1">
+                        <span className="font-medium text-slate-900">
+                          Стол #{session.tableNumber}
+                        </span>
+                        {session.tableName && (
+                          <span className="text-slate-500 text-sm">
+                            ({session.tableName})
+                          </span>
+                        )}
+                        <span className="px-2 py-0.5 text-xs bg-violet-100 text-violet-700 rounded">
+                          Доставка
+                        </span>
+                      </div>
+                      {order.deliveryAddress && (
+                        <p className="text-sm text-slate-600 mb-1">
+                          {order.deliveryAddress}
+                        </p>
+                      )}
+                      {order.customerPhone && (
+                        <p className="text-xs text-slate-500">
+                          Тел: {order.customerPhone}
+                        </p>
+                      )}
+                    </div>
+                    <div className="text-right">
+                      <p className="font-semibold text-slate-900">
+                        {new Intl.NumberFormat('ru-RU').format(order.total)} TJS
+                      </p>
+                      <p className="text-xs text-slate-400">
+                        {new Date(order.createdAt).toLocaleTimeString('ru-RU', {
+                          hour: '2-digit',
+                          minute: '2-digit',
+                        })}
+                      </p>
+                    </div>
+                  </div>
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+      </Modal>
+
+      {selectedJuraOrder && (
+        <JuraDeliveryModal
+          isOpen={isJuraDeliveryModalOpen}
+          onClose={() => {
+            setIsJuraDeliveryModalOpen(false);
+            setSelectedJuraOrder(null);
+          }}
+          order={selectedJuraOrder}
+          onSuccess={() => {
+            setIsJuraDeliveryModalOpen(false);
+            setSelectedJuraOrder(null);
+            fetchTableSessions();
+            toast.success('Доставка Jura успешно создана');
+          }}
+        />
+      )}
+
+      <CreateJuraOrderModal
+        isOpen={isCreateJuraModalOpen}
+        onClose={() => setIsCreateJuraModalOpen(false)}
+        onSuccess={() => {
+          setIsCreateJuraModalOpen(false);
+          fetchTableSessions();
+          toast.success('Доставка Jura успешно создана');
+        }}
+      />
+      */}
     </AdminLayout>
   );
 }
