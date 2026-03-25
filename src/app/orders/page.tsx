@@ -394,6 +394,37 @@ export default function OrdersPage() {
     }
   };
 
+  // Confirm all orders in a session
+  const handleConfirmAllOrders = async (session: TableSession) => {
+    setMarkingPaid(session.id);
+    try {
+      // Find all orders that need confirmation (pending status or have pending items)
+      const ordersToConfirm = session.orders.filter(
+        (order) => normalizeOrderStatus(order.status) === OrderStatus.Pending || order.hasPendingItems
+      );
+
+      // Confirm each order
+      for (const order of ordersToConfirm) {
+        await confirmPendingItems(order.id);
+      }
+
+      fetchTableSessions();
+
+      // Update selectedSession modal if open
+      if (selectedSession?.id === session.id) {
+        const response = await getTableSessions();
+        const updated = response.data.find((s: TableSession) => s.id === session.id);
+        if (updated) setSelectedSession(updated);
+        else setSelectedSession(null);
+      }
+    } catch (error) {
+      console.error('Error confirming all orders:', error);
+      alert('Ошибка при подтверждении заказов');
+    } finally {
+      setMarkingPaid(null);
+    }
+  };
+
   // Initialize SignalR connection
   useEffect(() => {
     const connection = new signalR.HubConnectionBuilder()
@@ -1606,13 +1637,23 @@ export default function OrdersPage() {
                       </div>
                     </div>
                     <div className="flex gap-2 justify-end">
+                      {session.orders.some(o => normalizeOrderStatus(o.status) === OrderStatus.Pending || o.hasPendingItems) && (
+                        <Button
+                          size="sm"
+                          onClick={() => handleConfirmAllOrders(session)}
+                          disabled={markingPaid === session.id}
+                        >
+                          Подтвердить все заказы
+                        </Button>
+                      )}
                       {session.unpaidAmount > 0 && (
                         <Button
                           size="sm"
+                          variant="secondary"
                           onClick={() => handleMarkSessionPaid(session.id)}
                           disabled={markingPaid === session.id}
                         >
-                          Отметить всё оплаченным
+                          Оплачено
                         </Button>
                       )}
                       {session.status === TableSessionStatus.Active && (
@@ -1773,19 +1814,29 @@ export default function OrdersPage() {
                 </div>
               )}
 
-              {/* Actions - JURA TEMPORARILY DISABLED - always show payment button */}
+              {/* Actions */}
               <div className="mt-6 flex gap-3">
+                {selectedSession.orders.some(o => normalizeOrderStatus(o.status) === OrderStatus.Pending || o.hasPendingItems) && (
+                  <Button
+                    className="flex-1"
+                    onClick={() => handleConfirmAllOrders(selectedSession)}
+                    disabled={markingPaid === selectedSession.id}
+                  >
+                    Подтвердить все заказы
+                  </Button>
+                )}
                 {selectedSession.unpaidAmount > 0 && (
                   <Button
                     className="flex-1"
+                    variant="secondary"
                     onClick={() => handleMarkSessionPaid(selectedSession.id)}
                     disabled={markingPaid === selectedSession.id}
                   >
-                    Отметить всё оплаченным
+                    Оплачено
                   </Button>
                 )}
                 <Button
-                  variant="secondary"
+                  variant="outline"
                   onClick={() => handleCloseSession(selectedSession.id)}
                 >
                   Закрыть стол
