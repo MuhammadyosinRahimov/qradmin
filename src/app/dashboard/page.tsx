@@ -339,7 +339,7 @@ export default function DashboardPage() {
                   outerRadius={90}
                   paddingAngle={4}
                   dataKey="value"
-                  label={({ name, percent }: { name: string; percent?: number }) => `${name} ${((percent ?? 0) * 100).toFixed(0)}%`}
+                  label={({ name, percent }) => `${name ?? ''} ${((percent ?? 0) * 100).toFixed(0)}%`}
                   labelLine={false}
                 >
                   {orderStatusData.map((entry, index) => (
@@ -387,7 +387,7 @@ export default function DashboardPage() {
                     borderRadius: '8px',
                     color: 'var(--text-primary)',
                   }}
-                  formatter={(value: number) => [formatCurrency(value), 'Выручка']}
+                  formatter={(value) => [formatCurrency(Number(value) || 0), 'Выручка']}
                   labelStyle={{ color: 'var(--text-secondary)' }}
                 />
                 <Bar
