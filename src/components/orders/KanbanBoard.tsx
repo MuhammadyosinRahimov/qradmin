@@ -41,6 +41,7 @@ interface KanbanBoardProps {
   onMarkOrderPaid: (sessionId: string, orderId: string) => void;
   onMarkSessionPaid: (sessionId: string) => void;
   onCancelOrder: (orderId: string) => Promise<void>;
+  onDismissWaiter: (orderId: string) => Promise<void>;
   onOrderClick: (order: SessionOrder, session: TableSession) => void;
   onSessionClick: (session: TableSession) => void;
   onRefreshNeeded?: () => void;
@@ -58,6 +59,16 @@ const columns = [
       </svg>
     ),
     headerColor: 'text-amber-600',
+  },
+  {
+    id: 'waiterCalled',
+    title: 'Вызов официанта',
+    icon: (
+      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
+      </svg>
+    ),
+    headerColor: 'text-orange-600',
   },
   {
     id: 'confirmed',
@@ -123,6 +134,12 @@ function getSessionColumn(session: TableSession): string {
     return 'pending';
   }
 
+  // Check if any order has waiter called - this takes priority
+  const hasWaiterCalled = activeOrders.some(o => o.waiterCalled);
+  if (hasWaiterCalled) {
+    return 'waiterCalled';
+  }
+
   // JURA TEMPORARILY DISABLED
   // Check if any order is in DeliveryJura status
   // const hasJuraDelivery = activeOrders.some(o => normalizeOrderStatus(o.status) === OrderStatus.DeliveryJura);
@@ -157,6 +174,7 @@ export default function KanbanBoard({
   onMarkOrderPaid,
   onMarkSessionPaid,
   onCancelOrder,
+  onDismissWaiter,
   onOrderClick,
   onSessionClick,
   onRefreshNeeded,
@@ -183,6 +201,7 @@ export default function KanbanBoard({
   const { sessionsByColumn, columnTotals, stats } = useMemo(() => {
     const result: Record<string, TableSession[]> = {
       pending: [],
+      waiterCalled: [],
       confirmed: [],
       deliveryJura: [],
       paid: [],
@@ -190,6 +209,7 @@ export default function KanbanBoard({
     };
     const totals: Record<string, number> = {
       pending: 0,
+      waiterCalled: 0,
       confirmed: 0,
       deliveryJura: 0,
       paid: 0,
@@ -246,6 +266,12 @@ export default function KanbanBoard({
       const bTime = Math.min(...b.orders.map(o => new Date(o.createdAt).getTime()));
       return bTime - aTime; // Newest first
     });
+    // Waiter called - sort by waiterCalledAt (oldest first, they've been waiting longest)
+    result.waiterCalled.sort((a, b) => {
+      const aTime = Math.min(...a.orders.filter(o => o.waiterCalled).map(o => new Date(o.waiterCalledAt || o.createdAt).getTime()));
+      const bTime = Math.min(...b.orders.filter(o => o.waiterCalled).map(o => new Date(o.waiterCalledAt || o.createdAt).getTime()));
+      return aTime - bTime; // Oldest first (should be attended first)
+    });
     result.confirmed.sort((a, b) => {
       const aTime = Math.min(...a.orders.map(o => new Date(o.createdAt).getTime()));
       const bTime = Math.min(...b.orders.map(o => new Date(o.createdAt).getTime()));
@@ -270,6 +296,7 @@ export default function KanbanBoard({
         totalAmount,
         avgWaitTime: sessionCount > 0 ? Math.round(totalWaitTime / sessionCount) : 0,
         pendingCount: result.pending.length,
+        waiterCalledCount: result.waiterCalled.length,
         confirmedCount: result.confirmed.length,
         deliveryJuraCount: result.deliveryJura.length,
         paidCount: result.paid.length,
@@ -512,6 +539,11 @@ export default function KanbanBoard({
             } ${animatingStats.has('pending') ? 'animate-counter-pulse' : ''}`}>
               {stats.pendingCount} новых
             </span>
+            {stats.waiterCalledCount > 0 && (
+              <span className="px-2.5 py-1 text-xs font-semibold bg-orange-500/20 text-orange-400 border border-orange-500/30 rounded tabular-nums animate-pulse">
+                {stats.waiterCalledCount} вызов
+              </span>
+            )}
             <span className={`px-2.5 py-1 text-xs font-semibold rounded tabular-nums ${
               stats.confirmedCount > 0 ? 'bg-blue-500/20 text-blue-400 border border-blue-500/30' : 'bg-slate-800 text-slate-500 border border-slate-700'
             }`}>
@@ -565,10 +597,12 @@ export default function KanbanBoard({
               totalAmount={columnTotals[column.id] || 0}
               headerColor={column.headerColor}
               isCancelledColumn={column.id === 'cancelled'}
+              isWaiterCalledColumn={column.id === 'waiterCalled'}
               onSessionClick={handleSessionClick}
               onConfirmOrder={onConfirmOrder}
               onMarkSessionPaid={onMarkSessionPaid}
               onCancelOrder={onCancelOrder}
+              onDismissWaiter={onDismissWaiter}
               // JURA TEMPORARILY DISABLED
               // juraLiveStatuses={juraLiveStatuses}
             />

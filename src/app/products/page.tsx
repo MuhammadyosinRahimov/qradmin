@@ -275,8 +275,8 @@ export default function ProductsPage() {
     <AdminLayout>
       <div className="flex items-center justify-between mb-6">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Продукты</h1>
-          <p className="text-gray-500 mt-1">Управление продуктами меню</p>
+          <h1 className="text-2xl font-bold text-[var(--text-primary)]">Продукты</h1>
+          <p className="text-[var(--text-secondary)] mt-1">Управление продуктами меню</p>
         </div>
         <Button onClick={openCreateModal} disabled={categories.length === 0}>
           <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -325,10 +325,10 @@ export default function ProductsPage() {
         <div className="flex items-end">
           <button
             onClick={() => setSortDirection(d => d === 'asc' ? 'desc' : 'asc')}
-            className="p-2 h-10 rounded-lg bg-white border border-gray-300 hover:bg-gray-50 transition-colors flex items-center justify-center"
+            className="p-2 h-10 rounded-lg bg-[var(--bg-surface)] border border-[var(--border-primary)] hover:bg-[var(--bg-secondary)] transition-colors flex items-center justify-center theme-transition"
             title={sortDirection === 'asc' ? 'По возрастанию' : 'По убыванию'}
           >
-            <svg className="w-5 h-5 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <svg className="w-5 h-5 text-[var(--text-secondary)]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               {sortDirection === 'asc' ? (
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 15l7-7 7 7" />
               ) : (
@@ -342,21 +342,21 @@ export default function ProductsPage() {
       {loading ? (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {[1, 2, 3, 4, 5, 6].map((i) => (
-            <div key={i} className="bg-white rounded-xl overflow-hidden animate-pulse">
-              <div className="h-40 bg-gray-200"></div>
+            <div key={i} className="bg-[var(--bg-surface)] rounded-xl overflow-hidden animate-pulse border border-[var(--border-primary)] theme-transition">
+              <div className="h-40 bg-[var(--bg-secondary)]"></div>
               <div className="p-4">
-                <div className="h-5 w-3/4 bg-gray-200 rounded mb-2"></div>
-                <div className="h-4 w-1/2 bg-gray-200 rounded"></div>
+                <div className="h-5 w-3/4 bg-[var(--bg-secondary)] rounded mb-2"></div>
+                <div className="h-4 w-1/2 bg-[var(--bg-secondary)] rounded"></div>
               </div>
             </div>
           ))}
         </div>
       ) : products.length === 0 ? (
-        <div className="text-center py-12 bg-white rounded-xl">
-          <svg className="w-16 h-16 mx-auto text-gray-300 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <div className="text-center py-12 bg-[var(--bg-surface)] rounded-xl border border-[var(--border-primary)] theme-transition">
+          <svg className="w-16 h-16 mx-auto text-[var(--text-muted)] mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
           </svg>
-          <p className="text-gray-500 mb-4">Продукты не найдены</p>
+          <p className="text-[var(--text-secondary)] mb-4">Продукты не найдены</p>
           <Button onClick={openCreateModal} disabled={categories.length === 0}>
             Добавить продукт
           </Button>
@@ -366,9 +366,9 @@ export default function ProductsPage() {
           {sortedProducts.map((product) => (
             <div
               key={product.id}
-              className={`bg-white rounded-xl overflow-hidden shadow-sm ${!product.isAvailable ? 'opacity-60' : ''}`}
+              className={`bg-[var(--bg-surface)] rounded-xl overflow-hidden shadow-sm border border-[var(--border-primary)] theme-transition ${!product.isAvailable ? 'opacity-60' : ''}`}
             >
-              <div className="h-40 bg-gray-100 relative">
+              <div className="h-40 bg-[var(--bg-secondary)] relative">
                 {getImageUrl(product.imageUrl) ? (
                   <img
                     src={getImageUrl(product.imageUrl)!}
@@ -376,13 +376,13 @@ export default function ProductsPage() {
                     className="w-full h-full object-cover"
                   />
                 ) : (
-                  <div className="w-full h-full flex items-center justify-center text-gray-300">
+                  <div className="w-full h-full flex items-center justify-center text-[var(--text-muted)]">
                     <svg className="w-16 h-16" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
                     </svg>
                   </div>
                 )}
-                <span className="absolute top-2 right-2 px-2 py-1 bg-blue-600 text-white text-sm font-medium rounded-lg">
+                <span className="absolute top-2 right-2 px-2 py-1 bg-[var(--primary)] text-white text-sm font-medium rounded-lg">
                   {product.discountPrice ? (
                     <>
                       <span className="line-through opacity-70 mr-1">{product.basePrice}</span>
@@ -393,13 +393,13 @@ export default function ProductsPage() {
                   )}
                 </span>
                 {!product.isAvailable && (
-                  <span className="absolute top-2 left-2 px-2 py-1 bg-red-500 text-white text-xs font-medium rounded-lg">
+                  <span className="absolute top-2 left-2 px-2 py-1 bg-[var(--status-error)] text-white text-xs font-medium rounded-lg">
                     Неактивен
                   </span>
                 )}
                 {/* Sizes badge */}
                 {product.sizesCount && product.sizesCount > 0 && (
-                  <span className="absolute bottom-2 left-2 px-2 py-1 bg-purple-600 text-white text-xs font-medium rounded-lg flex items-center gap-1">
+                  <span className="absolute bottom-2 left-2 px-2 py-1 bg-[var(--status-info)] text-white text-xs font-medium rounded-lg flex items-center gap-1">
                     <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5l-5-5m5 5v-4m0 4h-4" />
                     </svg>
@@ -411,10 +411,10 @@ export default function ProductsPage() {
               <div className="p-4">
                 <div className="flex items-start justify-between mb-2">
                   <div>
-                    <h3 className="font-semibold text-gray-900">{product.name}</h3>
-                    <span className="text-sm text-gray-500">{product.categoryName}</span>
+                    <h3 className="font-semibold text-[var(--text-primary)]">{product.name}</h3>
+                    <span className="text-sm text-[var(--text-secondary)]">{product.categoryName}</span>
                     {product.menuName && (
-                      <span className="block text-xs text-blue-500">{product.menuName}</span>
+                      <span className="block text-xs text-[var(--primary)]">{product.menuName}</span>
                     )}
                     {/* Show sizes as small badges */}
                     {product.sizes && product.sizes.length > 0 && (
@@ -424,8 +424,8 @@ export default function ProductsPage() {
                             key={size.id}
                             className={`inline-flex items-center px-1.5 py-0.5 text-xs rounded ${
                               size.isDefault
-                                ? 'bg-purple-100 text-purple-700'
-                                : 'bg-gray-100 text-gray-600'
+                                ? 'bg-[var(--status-info-bg)] text-[var(--status-info)]'
+                                : 'bg-[var(--bg-secondary)] text-[var(--text-secondary)]'
                             }`}
                           >
                             {size.name}
@@ -442,8 +442,8 @@ export default function ProductsPage() {
                       onClick={() => handleToggle(product.id)}
                       className={`p-2 rounded-lg transition-colors ${
                         product.isAvailable
-                          ? 'text-green-500 hover:text-green-600 hover:bg-green-50'
-                          : 'text-red-400 hover:text-red-600 hover:bg-red-50'
+                          ? 'text-[var(--status-success)] hover:bg-[var(--status-success-bg)]'
+                          : 'text-[var(--status-error)] hover:bg-[var(--status-error-bg)]'
                       }`}
                       title={product.isAvailable ? 'Деактивировать' : 'Активировать'}
                     >
@@ -459,7 +459,7 @@ export default function ProductsPage() {
                     </button>
                     <button
                       onClick={() => openEditModal(product)}
-                      className="p-2 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+                      className="p-2 text-[var(--text-muted)] hover:text-[var(--primary)] hover:bg-[var(--primary-bg)] rounded-lg transition-colors"
                     >
                       <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
@@ -467,7 +467,7 @@ export default function ProductsPage() {
                     </button>
                     <button
                       onClick={() => handleDelete(product.id)}
-                      className="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                      className="p-2 text-[var(--text-muted)] hover:text-[var(--status-error)] hover:bg-[var(--status-error-bg)] rounded-lg transition-colors"
                     >
                       <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
@@ -477,10 +477,10 @@ export default function ProductsPage() {
                 </div>
 
                 {product.description && (
-                  <p className="text-sm text-gray-500 line-clamp-2 mb-3">{product.description}</p>
+                  <p className="text-sm text-[var(--text-secondary)] line-clamp-2 mb-3">{product.description}</p>
                 )}
 
-                <div className="flex items-center gap-4 text-xs text-gray-500 flex-wrap">
+                <div className="flex items-center gap-4 text-xs text-[var(--text-muted)] flex-wrap">
                   {product.weight && product.weight > 0 && (
                     <span className="flex items-center gap-1">
                       <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -530,7 +530,7 @@ export default function ProductsPage() {
           />
 
           <div>
-            <label htmlFor="description" className="block text-sm font-medium text-gray-700 mb-1">
+            <label htmlFor="description" className="block text-sm font-medium text-[var(--text-primary)] mb-1">
               Описание
             </label>
             <textarea
@@ -539,7 +539,7 @@ export default function ProductsPage() {
               onChange={(e) => setFormData({ ...formData, description: e.target.value })}
               placeholder="Описание продукта"
               rows={3}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              className="w-full px-3 py-2 border border-[var(--border-primary)] rounded-lg bg-[var(--bg-secondary)] text-[var(--text-primary)] placeholder-[var(--text-muted)] focus:outline-none focus:ring-2 focus:ring-[var(--primary)] focus:border-transparent theme-transition"
             />
           </div>
 
@@ -589,7 +589,7 @@ export default function ProductsPage() {
           </div>
 
           <div>
-            <label htmlFor="ingredients" className="block text-sm font-medium text-gray-700 mb-1">
+            <label htmlFor="ingredients" className="block text-sm font-medium text-[var(--text-primary)] mb-1">
               Состав
             </label>
             <textarea
@@ -598,7 +598,7 @@ export default function ProductsPage() {
               onChange={(e) => setFormData({ ...formData, ingredients: e.target.value })}
               placeholder="Томатный соус, моцарелла, базилик..."
               rows={2}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              className="w-full px-3 py-2 border border-[var(--border-primary)] rounded-lg bg-[var(--bg-secondary)] text-[var(--text-primary)] placeholder-[var(--text-muted)] focus:outline-none focus:ring-2 focus:ring-[var(--primary)] focus:border-transparent theme-transition"
             />
           </div>
 
@@ -623,11 +623,11 @@ export default function ProductsPage() {
           {editingProduct && (
             <div className="space-y-3">
               <div className="flex items-center justify-between">
-                <label className="text-sm font-medium text-gray-700">Размеры</label>
+                <label className="text-sm font-medium text-[var(--text-primary)]">Размеры</label>
                 <button
                   type="button"
                   onClick={() => setShowAddSize(true)}
-                  className="text-sm text-blue-600 hover:text-blue-700"
+                  className="text-sm text-[var(--primary)] hover:text-[var(--primary-hover)]"
                 >
                   + Добавить размер
                 </button>
@@ -637,38 +637,38 @@ export default function ProductsPage() {
               {productSizes.length > 0 && (
                 <div className="space-y-2">
                   {productSizes.map((size) => (
-                    <div key={size.id} className="flex items-center gap-2 p-2 bg-gray-50 rounded-lg">
+                    <div key={size.id} className="flex items-center gap-2 p-2 bg-[var(--bg-secondary)] rounded-lg">
                       <input
                         type="text"
                         value={size.name}
                         onChange={(e) => handleUpdateSize(size.id, 'name', e.target.value)}
-                        className="flex-1 px-2 py-1 text-sm border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-500"
+                        className="flex-1 px-2 py-1 text-sm border border-[var(--border-primary)] rounded bg-[var(--bg-surface)] text-[var(--text-primary)] focus:outline-none focus:ring-1 focus:ring-[var(--primary)]"
                         placeholder="Название"
                       />
                       <div className="flex items-center gap-1">
-                        <span className="text-sm text-gray-500">+</span>
+                        <span className="text-sm text-[var(--text-muted)]">+</span>
                         <input
                           type="number"
                           value={size.priceModifier}
                           onChange={(e) => handleUpdateSize(size.id, 'priceModifier', parseFloat(e.target.value) || 0)}
-                          className="w-20 px-2 py-1 text-sm border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-500"
+                          className="w-20 px-2 py-1 text-sm border border-[var(--border-primary)] rounded bg-[var(--bg-surface)] text-[var(--text-primary)] focus:outline-none focus:ring-1 focus:ring-[var(--primary)]"
                           placeholder="Цена"
                         />
-                        <span className="text-sm text-gray-500">₽</span>
+                        <span className="text-sm text-[var(--text-muted)]">₽</span>
                       </div>
-                      <label className="flex items-center gap-1 text-sm text-gray-600 whitespace-nowrap">
+                      <label className="flex items-center gap-1 text-sm text-[var(--text-secondary)] whitespace-nowrap">
                         <input
                           type="checkbox"
                           checked={size.isDefault}
                           onChange={(e) => handleUpdateSize(size.id, 'isDefault', e.target.checked)}
-                          className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                          className="rounded border-[var(--border-primary)] text-[var(--primary)] focus:ring-[var(--primary)]"
                         />
                         По умолч.
                       </label>
                       <button
                         type="button"
                         onClick={() => handleDeleteSize(size.id)}
-                        className="p-1 text-red-500 hover:bg-red-50 rounded"
+                        className="p-1 text-[var(--status-error)] hover:bg-[var(--status-error-bg)] rounded"
                         title="Удалить"
                       >
                         <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -681,35 +681,35 @@ export default function ProductsPage() {
               )}
 
               {productSizes.length === 0 && !showAddSize && (
-                <p className="text-sm text-gray-500 italic">Размеры не добавлены</p>
+                <p className="text-sm text-[var(--text-muted)] italic">Размеры не добавлены</p>
               )}
 
               {/* Форма добавления нового размера */}
               {showAddSize && (
-                <div className="flex items-center gap-2 p-2 border-2 border-dashed border-gray-300 rounded-lg">
+                <div className="flex items-center gap-2 p-2 border-2 border-dashed border-[var(--border-primary)] rounded-lg">
                   <input
                     type="text"
                     value={newSizeName}
                     onChange={(e) => setNewSizeName(e.target.value)}
                     placeholder="Название размера"
-                    className="flex-1 px-2 py-1 text-sm border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-500"
+                    className="flex-1 px-2 py-1 text-sm border border-[var(--border-primary)] rounded bg-[var(--bg-surface)] text-[var(--text-primary)] focus:outline-none focus:ring-1 focus:ring-[var(--primary)]"
                   />
                   <div className="flex items-center gap-1">
-                    <span className="text-sm text-gray-500">+</span>
+                    <span className="text-sm text-[var(--text-muted)]">+</span>
                     <input
                       type="number"
                       value={newSizePrice}
                       onChange={(e) => setNewSizePrice(parseFloat(e.target.value) || 0)}
                       placeholder="0"
-                      className="w-20 px-2 py-1 text-sm border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-500"
+                      className="w-20 px-2 py-1 text-sm border border-[var(--border-primary)] rounded bg-[var(--bg-surface)] text-[var(--text-primary)] focus:outline-none focus:ring-1 focus:ring-[var(--primary)]"
                     />
-                    <span className="text-sm text-gray-500">₽</span>
+                    <span className="text-sm text-[var(--text-muted)]">₽</span>
                   </div>
                   <button
                     type="button"
                     onClick={handleAddSize}
                     disabled={sizeSaving || !newSizeName.trim()}
-                    className="px-3 py-1 text-sm bg-blue-600 text-white rounded hover:bg-blue-700 disabled:opacity-50"
+                    className="px-3 py-1 text-sm bg-[var(--primary)] text-white rounded hover:bg-[var(--primary-hover)] disabled:opacity-50"
                   >
                     {sizeSaving ? '...' : 'Добавить'}
                   </button>
@@ -720,7 +720,7 @@ export default function ProductsPage() {
                       setNewSizeName('');
                       setNewSizePrice(0);
                     }}
-                    className="px-3 py-1 text-sm bg-gray-200 text-gray-700 rounded hover:bg-gray-300"
+                    className="px-3 py-1 text-sm bg-[var(--bg-secondary)] text-[var(--text-primary)] rounded hover:bg-[var(--border-primary)]"
                   >
                     Отмена
                   </button>

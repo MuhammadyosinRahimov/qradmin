@@ -3,10 +3,7 @@
 import { useState, useMemo } from 'react';
 import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
-import { TableSession, SessionOrder, OrderType, OrderStatus } from '@/types';
-// JURA TEMPORARILY DISABLED
-// import { JuraLiveStatus } from '@/types';
-// import { getJuraReceiptCode, getJuraDriverPosition } from '@/lib/api';
+import { TableSession, OrderType, OrderStatus } from '@/types';
 
 // Normalize order status (handle both string and number values from API)
 const normalizeOrderStatus = (status: OrderStatus | string | number): OrderStatus => {
@@ -15,12 +12,9 @@ const normalizeOrderStatus = (status: OrderStatus | string | number): OrderStatu
     'Pending': OrderStatus.Pending,
     'Confirmed': OrderStatus.Confirmed,
     'Cancelled': OrderStatus.Cancelled,
-    // JURA TEMPORARILY DISABLED
-    // 'DeliveryJura': OrderStatus.DeliveryJura,
     '0': OrderStatus.Pending,
     '1': OrderStatus.Confirmed,
     '3': OrderStatus.Cancelled,
-    // '4': OrderStatus.DeliveryJura,
   };
   return statusMap[String(status)] ?? OrderStatus.Pending;
 };
@@ -32,40 +26,27 @@ interface SessionCardProps {
   onConfirmOrder?: (orderId: string) => Promise<void>;
   onMarkSessionPaid?: (sessionId: string) => void;
   onCancelOrder?: (orderId: string) => Promise<void>;
-  // JURA TEMPORARILY DISABLED
-  // juraLiveStatuses?: Record<string, JuraLiveStatus>;
+  onDismissWaiter?: (orderId: string) => Promise<void>;
+  isWaiterCalledColumn?: boolean;
 }
 
 const orderTypeConfig = {
   [OrderType.DineIn]: {
     label: 'Зал',
-    color: 'text-slate-600',
-    bg: 'bg-slate-100',
+    color: 'text-[var(--text-secondary)]',
+    bg: 'bg-[var(--bg-muted)]',
   },
   [OrderType.Delivery]: {
     label: 'Доставка',
-    color: 'text-violet-600',
-    bg: 'bg-violet-50',
+    color: 'text-violet-400',
+    bg: 'bg-violet-500/20',
   },
   [OrderType.Takeaway]: {
     label: 'Самовывоз',
-    color: 'text-cyan-600',
-    bg: 'bg-cyan-50',
+    color: 'text-cyan-400',
+    bg: 'bg-cyan-500/20',
   },
 };
-
-// JURA TEMPORARILY DISABLED
-// const getJuraStatusColor = (statusId?: number) => {
-//   switch (statusId) {
-//     case 1: return 'bg-slate-100 text-slate-700';      // Поступило
-//     case 2: return 'bg-blue-100 text-blue-700';        // Водитель назначен
-//     case 4: return 'bg-orange-100 text-orange-700';    // Водитель на месте
-//     case 7: return 'bg-violet-100 text-violet-700';    // Исполняется
-//     case 9: return 'bg-emerald-100 text-emerald-700';  // Выполнен
-//     case 10: return 'bg-red-100 text-red-700';         // Отменен
-//     default: return 'bg-slate-100 text-slate-700';
-//   }
-// };
 
 export default function SessionCard({
   session,
@@ -74,16 +55,11 @@ export default function SessionCard({
   onConfirmOrder,
   onMarkSessionPaid,
   onCancelOrder,
-  // JURA TEMPORARILY DISABLED
-  // juraLiveStatuses,
+  onDismissWaiter,
+  isWaiterCalledColumn = false,
 }: SessionCardProps) {
   const [isProcessing, setIsProcessing] = useState(false);
   const [expandedOrders, setExpandedOrders] = useState<Set<string>>(new Set());
-  // JURA TEMPORARILY DISABLED
-  // const [receiptCode, setReceiptCode] = useState<string | null>(null);
-  // const [loadingReceiptCode, setLoadingReceiptCode] = useState(false);
-  // const [driverPosition, setDriverPosition] = useState<{ lat: number; lng: number } | null>(null);
-  // const [loadingPosition, setLoadingPosition] = useState(false);
 
   // Filter active orders (non-cancelled)
   const activeOrders = useMemo(() =>
@@ -163,7 +139,7 @@ export default function SessionCard({
   );
 
   // Calculate total prices
-  const { confirmedTotal, pendingTotal, totalPrice } = useMemo(() => {
+  const { pendingTotal } = useMemo(() => {
     let confirmed = 0;
     let pending = 0;
     activeOrders.forEach(order => {
@@ -191,7 +167,6 @@ export default function SessionCard({
     if (!onConfirmOrder || isProcessing) return;
     setIsProcessing(true);
     try {
-      // Confirm all pending orders AND orders with pending items
       const pendingOrders = activeOrders.filter(o =>
         normalizeOrderStatus(o.status) === OrderStatus.Pending ||
         o.items?.some(i => i.status === 0)
@@ -226,10 +201,24 @@ export default function SessionCard({
     if (!onCancelOrder || isProcessing) return;
     setIsProcessing(true);
     try {
-      // Cancel all active orders
       for (const order of activeOrders) {
         if (normalizeOrderStatus(order.status) !== OrderStatus.Cancelled) {
           await onCancelOrder(order.id);
+        }
+      }
+    } finally {
+      setIsProcessing(false);
+    }
+  };
+
+  const handleDismissWaiter = async (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (!onDismissWaiter || isProcessing) return;
+    setIsProcessing(true);
+    try {
+      for (const order of activeOrders) {
+        if (order.waiterCalled) {
+          await onDismissWaiter(order.id);
         }
       }
     } finally {
@@ -250,37 +239,25 @@ export default function SessionCard({
     });
   };
 
-  // JURA TEMPORARILY DISABLED
-  // // Fetch receipt code for Jura order
-  // const handleGetReceiptCode = async (e: React.MouseEvent, orderId: string) => { ... };
-  // // Fetch driver position for Jura order
-  // const handleGetDriverPosition = async (e: React.MouseEvent, orderId: string) => { ... };
-
-  // JURA TEMPORARILY DISABLED - always false
-  const isJuraSession = false; // activeOrders.every(o => normalizeOrderStatus(o.status) === OrderStatus.DeliveryJura || o.juraOrderId);
-
   // Determine which quick actions to show
   const showConfirmButton = columnId === 'pending';
-  // JURA TEMPORARILY DISABLED - always show pay button in confirmed column
   const showPayButton = columnId === 'confirmed';
   const showCancelButton = columnId === 'pending' || columnId === 'confirmed';
 
   // Border color based on column
   const getBorderColor = () => {
-    if (allCancelled) return 'border-l-red-400';
-    if (columnId === 'paid') return 'border-l-emerald-500';
-    // JURA TEMPORARILY DISABLED
-    // if (columnId === 'deliveryJura') return 'border-l-violet-500';
-    if (columnId === 'confirmed') return 'border-l-blue-500';
-    return 'border-l-amber-500';
+    if (allCancelled) return 'border-l-[var(--status-error)]';
+    if (columnId === 'paid') return 'border-l-[var(--status-success)]';
+    if (columnId === 'waiterCalled') return 'border-l-[var(--status-waiter)]';
+    if (columnId === 'confirmed') return 'border-l-[var(--status-info)]';
+    return 'border-l-[var(--status-pending)]';
   };
 
   // Urgency classes
   const getUrgencyClasses = () => {
-    // JURA TEMPORARILY DISABLED - removed deliveryJura check
     if (allCancelled || columnId === 'paid') return '';
-    if (isUrgent) return 'urgency-critical animate-pulse-urgent';
-    if (isWarning) return 'urgency-warning animate-pulse-border';
+    if (isUrgent) return 'animate-pulse-urgent';
+    if (isWarning) return 'animate-pulse-border';
     if (isNew && columnId === 'pending') return 'animate-pulse-border';
     return '';
   };
@@ -293,24 +270,24 @@ export default function SessionCard({
       {...listeners}
       onClick={onClick}
       className={`
-        bg-white border border-slate-200 border-l-[3px] ${getBorderColor()}
-        rounded card-interactive
+        bg-[var(--bg-surface)] border border-[var(--border-primary)] border-l-[3px] ${getBorderColor()}
+        rounded-lg card-interactive theme-transition
         ${allCancelled ? 'opacity-60 cursor-not-allowed' : 'cursor-pointer'}
-        ${isDragging ? 'shadow-lg scale-[1.02] z-50 ring-2 ring-blue-400' : ''}
+        ${isDragging ? 'shadow-lg scale-[1.02] z-50 ring-2 ring-[var(--primary)]' : ''}
         ${getUrgencyClasses()}
       `}
     >
       {/* Header row - table, guests count, timer */}
-      <div className="px-2.5 py-2 border-b border-slate-100 flex items-center justify-between">
+      <div className="px-2.5 py-2 border-b border-[var(--border-primary)] flex items-center justify-between">
         <div className="flex items-center gap-2">
-          <span className="font-semibold text-slate-900 text-sm tabular-nums">
+          <span className="font-semibold text-[var(--text-primary)] text-sm tabular-nums">
             #{session.tableNumber}
           </span>
           {session.tableName && (
-            <span className="text-xs text-slate-500 truncate max-w-[80px]">{session.tableName}</span>
+            <span className="text-xs text-[var(--text-secondary)] truncate max-w-[80px]">{session.tableName}</span>
           )}
           {guestCount > 1 && (
-            <span className="flex items-center gap-0.5 text-[10px] text-blue-600 bg-blue-50 px-1.5 py-0.5 rounded">
+            <span className="flex items-center gap-0.5 text-[10px] text-[var(--status-info)] bg-[var(--status-info-bg)] px-1.5 py-0.5 rounded">
               <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
               </svg>
@@ -319,43 +296,43 @@ export default function SessionCard({
           )}
         </div>
         <div className="flex items-center gap-2">
-          {/* Timer */}
           <span className={`text-xs font-semibold tabular-nums ${
-            isUrgent ? 'text-red-600' : isWarning ? 'text-amber-600' : 'text-slate-400'
+            isUrgent ? 'text-[var(--status-error)]' : isWarning ? 'text-[var(--status-warning)]' : 'text-[var(--text-muted)]'
           }`}>
             {waitingMinutes}м
           </span>
-          {/* Time */}
-          <span className="text-[10px] text-slate-400 tabular-nums">
+          <span className="text-[10px] text-[var(--text-muted)] tabular-nums">
             {activeOrders[0] && formatTime(activeOrders[0].createdAt)}
           </span>
         </div>
       </div>
 
       {/* Type badge row */}
-      <div className="px-2.5 py-1.5 flex items-center gap-1.5 border-b border-slate-50">
+      <div className="px-2.5 py-1.5 flex items-center gap-1.5 border-b border-[var(--border-primary)]/50">
         <span className={`text-[10px] px-1.5 py-0.5 font-medium rounded ${typeConfig.bg} ${typeConfig.color}`}>
           {typeConfig.label}
         </span>
         {hasPendingItems && (
-          <span className="text-[10px] px-1.5 py-0.5 font-medium bg-amber-50 text-amber-700 rounded">
+          <span className="text-[10px] px-1.5 py-0.5 font-medium bg-[var(--status-pending-bg)] text-[var(--status-pending)] rounded">
             Новые позиции
           </span>
         )}
-        {/* Hide cash payment badge for Jura orders */}
-        {!isJuraSession && activeOrders.some(o => o.wantsCashPayment) && (
-          <span className="text-[10px] px-1.5 py-0.5 font-medium bg-slate-100 text-slate-600 rounded">
+        {activeOrders.some(o => o.waiterCalled) && (
+          <span className="text-[10px] px-1.5 py-0.5 font-medium bg-[var(--status-waiter-bg)] text-[var(--status-waiter)] rounded animate-pulse">
+            Вызов официанта
+          </span>
+        )}
+        {activeOrders.some(o => o.wantsCashPayment) && (
+          <span className="text-[10px] px-1.5 py-0.5 font-medium bg-[var(--bg-muted)] text-[var(--text-secondary)] rounded">
             Наличные
           </span>
         )}
       </div>
 
-      {/* JURA TEMPORARILY DISABLED - Entire Jura delivery status section commented out */}
-
       {/* Cancelled badge */}
       {allCancelled && (
-        <div className="px-2.5 py-1.5 bg-red-50 border-b border-red-100">
-          <span className="text-[10px] font-semibold text-red-600 uppercase tracking-wide">
+        <div className="px-2.5 py-1.5 bg-[var(--status-error-bg)] border-b border-[var(--status-error)]/20">
+          <span className="text-[10px] font-semibold text-[var(--status-error)] uppercase tracking-wide">
             Все заказы отменены
           </span>
         </div>
@@ -368,14 +345,11 @@ export default function SessionCard({
             const isExpanded = expandedOrders.has(order.id);
             const orderItems = order.items || [];
             const pendingItems = orderItems.filter(i => i.status === 0);
-            const confirmedItems = orderItems.filter(i => i.status === 1);
             const cancelledItems = orderItems.filter(i => i.status === 2);
-            // Show ALL items including cancelled (not hiding them anymore)
             const displayItems = isExpanded ? orderItems : orderItems.slice(0, 3);
             const remainingCount = orderItems.length - 3;
             const orderTotal = orderItems.filter(i => i.status !== 2).reduce((sum, i) => sum + i.totalPrice, 0);
 
-            // Check if item was added recently (last 30 seconds)
             const isRecentItem = (item: { createdAt?: string }) => {
               if (!item.createdAt) return false;
               const secondsAgo = (Date.now() - new Date(item.createdAt).getTime()) / 1000;
@@ -384,36 +358,36 @@ export default function SessionCard({
             const isPending = normalizeOrderStatus(order.status) === OrderStatus.Pending || pendingItems.length > 0;
 
             return (
-              <div key={order.id} className={`rounded border ${isPending ? 'border-amber-200 bg-amber-50/30' : 'border-slate-100 bg-slate-50/30'}`}>
+              <div key={order.id} className={`rounded-lg border ${isPending ? 'border-[var(--status-pending)]/30 bg-[var(--status-pending-bg)]' : 'border-[var(--border-primary)] bg-[var(--bg-secondary)]'}`}>
                 {/* Order header */}
                 <div
                   className="px-2 py-1.5 flex items-center justify-between cursor-pointer"
                   onClick={(e) => toggleOrderExpanded(e, order.id)}
                 >
                   <div className="flex items-center gap-2">
-                    <span className="text-[10px] text-slate-500">
+                    <span className="text-[10px] text-[var(--text-muted)]">
                       {order.guestPhone ? `**${order.guestPhone.slice(-4)}` : `Гость ${idx + 1}`}
                     </span>
                     {pendingItems.length > 0 && (
-                      <span className="text-[10px] px-1 py-0.5 bg-amber-100 text-amber-700 rounded">
+                      <span className="text-[10px] px-1 py-0.5 bg-[var(--status-pending-bg)] text-[var(--status-pending)] rounded">
                         +{pendingItems.length} новых
                       </span>
                     )}
                     {cancelledItems.length > 0 && (
-                      <span className="text-[10px] px-1 py-0.5 bg-red-100 text-red-600 rounded">
+                      <span className="text-[10px] px-1 py-0.5 bg-[var(--status-error-bg)] text-[var(--status-error)] rounded">
                         {cancelledItems.length} отмен.
                       </span>
                     )}
                   </div>
                   <div className="flex items-center gap-2">
-                    <span className="text-[11px] font-medium text-slate-700 tabular-nums">
+                    <span className="text-[11px] font-medium text-[var(--text-primary)] tabular-nums">
                       {formatPrice(orderTotal)} TJS
                     </span>
                     {columnId === 'pending' && (normalizeOrderStatus(order.status) === OrderStatus.Pending || pendingItems.length > 0) && (
                       <button
                         onClick={(e) => handleConfirmSingleOrder(e, order.id)}
                         disabled={isProcessing}
-                        className="p-1 bg-blue-500 text-white rounded hover:bg-blue-600 disabled:opacity-50"
+                        className="p-1 bg-[var(--status-info)] text-white rounded hover:brightness-110 disabled:opacity-50"
                         title="Подтвердить"
                       >
                         <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -421,7 +395,7 @@ export default function SessionCard({
                         </svg>
                       </button>
                     )}
-                    <svg className={`w-3 h-3 text-slate-400 transition-transform ${isExpanded ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <svg className={`w-3 h-3 text-[var(--text-muted)] transition-transform ${isExpanded ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
                     </svg>
                   </div>
@@ -439,10 +413,10 @@ export default function SessionCard({
                         <div className="flex items-center gap-2">
                           <span className={`flex-shrink-0 w-3 h-3 rounded border flex items-center justify-center ${
                             itemIsCancelled
-                              ? 'bg-red-400 border-red-400 text-white'
+                              ? 'bg-[var(--status-error)] border-[var(--status-error)] text-white'
                               : itemIsConfirmed
-                                ? 'bg-emerald-500 border-emerald-500 text-white'
-                                : 'border-slate-300 bg-white'
+                                ? 'bg-[var(--status-success)] border-[var(--status-success)] text-white'
+                                : 'border-[var(--border-secondary)] bg-[var(--bg-surface)]'
                           }`}>
                             {itemIsCancelled ? (
                               <svg className="w-2 h-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -456,30 +430,30 @@ export default function SessionCard({
                           </span>
                           <span className={`flex-1 truncate ${
                             itemIsCancelled
-                              ? 'line-through text-red-600'
+                              ? 'line-through text-[var(--status-error)]'
                               : itemIsPending
-                                ? 'text-amber-700 font-medium'
-                                : 'text-slate-600'
+                                ? 'text-[var(--status-pending)] font-medium'
+                                : 'text-[var(--text-secondary)]'
                           }`}>
                             {item.productName}
                           </span>
                           {itemIsNew && !itemIsCancelled && (
-                            <span className="text-[8px] px-1 py-0.5 bg-green-500 text-white rounded animate-pulse font-bold">
+                            <span className="text-[8px] px-1 py-0.5 bg-[var(--status-success)] text-white rounded animate-pulse font-bold">
                               NEW
                             </span>
                           )}
-                          <span className={`tabular-nums ${itemIsCancelled ? 'text-red-400' : 'text-slate-400'}`}>×{item.quantity}</span>
+                          <span className={`tabular-nums ${itemIsCancelled ? 'text-[var(--status-error)]' : 'text-[var(--text-muted)]'}`}>x{item.quantity}</span>
                         </div>
                         {item.note && (
-                          <div className={`ml-5 mt-0.5 text-[9px] italic truncate ${itemIsCancelled ? 'text-red-400' : 'text-amber-600'}`}>
-                            📝 {item.note}
+                          <div className={`ml-5 mt-0.5 text-[9px] italic truncate ${itemIsCancelled ? 'text-[var(--status-error)]' : 'text-[var(--status-pending)]'}`}>
+                            {item.note}
                           </div>
                         )}
                       </div>
                     );
                   })}
                   {!isExpanded && remainingCount > 0 && (
-                    <div className="text-[10px] text-slate-400 pl-5">
+                    <div className="text-[10px] text-[var(--text-muted)] pl-5">
                       +{remainingCount} ещё...
                     </div>
                   )}
@@ -490,33 +464,48 @@ export default function SessionCard({
         </div>
       </div>
 
-      {/* Footer - total price and actions (hide price for pure Jura sessions) */}
-      <div className="px-2.5 py-2 border-t border-slate-100 bg-slate-50/50">
-        {/* Hide price section for pure Jura sessions */}
-        {!isJuraSession && (
-          <div className="flex items-center justify-between">
-            <div className="flex items-baseline gap-1">
-              <span className="text-sm font-semibold text-slate-900 tabular-nums">
-                {formatPrice(session.sessionTotal)}
-              </span>
-              <span className="text-[10px] text-slate-400">TJS</span>
-            </div>
-            {pendingTotal > 0 && (
-              <span className="text-[10px] text-amber-600 font-medium tabular-nums">
-                +{formatPrice(pendingTotal)} ожид.
-              </span>
-            )}
+      {/* Footer - total price and actions */}
+      <div className="px-2.5 py-2 border-t border-[var(--border-primary)] bg-[var(--bg-secondary)]">
+        <div className="flex items-center justify-between">
+          <div className="flex items-baseline gap-1">
+            <span className="text-sm font-semibold text-[var(--text-primary)] tabular-nums">
+              {formatPrice(session.sessionTotal)}
+            </span>
+            <span className="text-[10px] text-[var(--text-muted)]">TJS</span>
           </div>
-        )}
+          {pendingTotal > 0 && (
+            <span className="text-[10px] text-[var(--status-pending)] font-medium tabular-nums">
+              +{formatPrice(pendingTotal)} ожид.
+            </span>
+          )}
+        </div>
 
         {/* Quick actions */}
-        {(showConfirmButton || showPayButton || showCancelButton) && !allCancelled && (
-          <div className={`flex gap-1.5 ${!isJuraSession ? 'mt-2' : ''}`}>
+        {(showConfirmButton || showPayButton || showCancelButton || isWaiterCalledColumn) && !allCancelled && (
+          <div className="flex gap-1.5 mt-2">
+            {isWaiterCalledColumn && (
+              <button
+                onClick={handleDismissWaiter}
+                disabled={isProcessing}
+                className="flex-1 px-2 py-1.5 bg-[var(--status-waiter)] text-white text-[11px] font-medium rounded hover:brightness-110 transition-all duration-150 disabled:opacity-50 flex items-center justify-center gap-1"
+              >
+                {isProcessing ? (
+                  <span className="w-3 h-3 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                ) : (
+                  <>
+                    <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                    </svg>
+                    Официант закончил
+                  </>
+                )}
+              </button>
+            )}
             {showConfirmButton && (
               <button
                 onClick={handleConfirmAll}
                 disabled={isProcessing}
-                className="flex-1 px-2 py-1.5 bg-blue-600 text-white text-[11px] font-medium rounded hover:bg-blue-700 transition-colors duration-150 disabled:opacity-50 flex items-center justify-center gap-1"
+                className="flex-1 px-2 py-1.5 bg-[var(--status-info)] text-white text-[11px] font-medium rounded hover:brightness-110 transition-all duration-150 disabled:opacity-50 flex items-center justify-center gap-1"
               >
                 {isProcessing ? (
                   <span className="w-3 h-3 border-2 border-white/30 border-t-white rounded-full animate-spin" />
@@ -534,7 +523,7 @@ export default function SessionCard({
               <button
                 onClick={handleMarkPaid}
                 disabled={isProcessing}
-                className="flex-1 px-2 py-1.5 bg-emerald-600 text-white text-[11px] font-medium rounded hover:bg-emerald-700 transition-colors duration-150 disabled:opacity-50 flex items-center justify-center gap-1"
+                className="flex-1 px-2 py-1.5 bg-[var(--status-success)] text-white text-[11px] font-medium rounded hover:brightness-110 transition-all duration-150 disabled:opacity-50 flex items-center justify-center gap-1"
               >
                 <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z" />
@@ -546,7 +535,7 @@ export default function SessionCard({
               <button
                 onClick={handleCancelAll}
                 disabled={isProcessing}
-                className="px-2 py-1.5 bg-slate-100 text-slate-500 text-[11px] font-medium rounded hover:bg-red-50 hover:text-red-600 transition-colors duration-150 disabled:opacity-50 flex items-center justify-center"
+                className="px-2 py-1.5 bg-[var(--bg-muted)] text-[var(--text-muted)] text-[11px] font-medium rounded hover:bg-[var(--status-error-bg)] hover:text-[var(--status-error)] transition-all duration-150 disabled:opacity-50 flex items-center justify-center"
                 title="Отменить все заказы"
               >
                 <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">

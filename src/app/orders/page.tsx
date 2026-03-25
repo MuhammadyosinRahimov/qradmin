@@ -6,7 +6,7 @@ import AdminLayout from '@/components/layout/AdminLayout';
 import Button from '@/components/ui/Button';
 import Modal from '@/components/ui/Modal';
 import Input from '@/components/ui/Input';
-import { getOrders, updateOrderStatus, getSignalRUrl, cancelOrderItem, confirmPendingItems, getRestaurantStatus, toggleRestaurantOrders, getRestaurants, getTableSessions, markSessionPaid, closeTableSession, markOrderPaidInSession } from '@/lib/api';
+import { getOrders, updateOrderStatus, getSignalRUrl, cancelOrderItem, confirmPendingItems, getRestaurantStatus, toggleRestaurantOrders, getRestaurants, getTableSessions, markSessionPaid, closeTableSession, markOrderPaidInSession, dismissWaiter } from '@/lib/api';
 // JURA TEMPORARILY DISABLED
 // import { getJuraOrderStatus, cancelJuraOrder } from '@/lib/api';
 import { Order, OrderStatus, OrderItemStatus, OrderItemStatusNames, Restaurant, TableSession, TableSessionStatus, OrderType, OrderTypeNames, SessionOrder } from '@/types';
@@ -108,6 +108,13 @@ export default function OrdersPage() {
     tableNumber: number;
     tableName: string;
     amount: number;
+    guestPhone?: string;
+  } | null>(null);
+
+  // Waiter call notification modal
+  const [waiterCallNotification, setWaiterCallNotification] = useState<{
+    tableNumber: number;
+    tableName: string;
     guestPhone?: string;
   } | null>(null);
 
@@ -535,6 +542,38 @@ export default function OrdersPage() {
       fetchTableSessions();
     });
 
+    // Listen for waiter call requests
+    connection.on('WaiterCalled', (data: {
+      orderId: string;
+      tableNumber: number;
+      tableName: string;
+      calledAt: string;
+      guestPhone?: string;
+    }) => {
+      console.log('[SignalR] WaiterCalled received:', data);
+
+      // Play notification sound
+      playNotificationSound();
+
+      // Open waiter call notification modal
+      setWaiterCallNotification({
+        tableNumber: data.tableNumber,
+        tableName: data.tableName,
+        guestPhone: data.guestPhone,
+      });
+
+      // Show browser notification
+      if ('Notification' in window && Notification.permission === 'granted') {
+        new Notification('Вызов официанта', {
+          body: `${data.tableName || `Стол №${data.tableNumber}`}`,
+          icon: '/favicon.ico',
+        });
+      }
+
+      // Refresh table sessions
+      fetchTableSessions();
+    });
+
     connection
       .start()
       .then(() => {
@@ -929,6 +968,10 @@ export default function OrdersPage() {
           }}
           onCancelOrder={async (orderId) => {
             await updateOrderStatus(orderId, OrderStatus.Cancelled);
+            fetchTableSessions();
+          }}
+          onDismissWaiter={async (orderId) => {
+            await dismissWaiter(orderId);
             fetchTableSessions();
           }}
           onOrderClick={(order, session) => {
@@ -2095,6 +2138,65 @@ export default function OrdersPage() {
 
               <Button
                 onClick={() => setCashPaymentNotification(null)}
+                className="w-full"
+                variant="primary"
+              >
+                Понятно
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Waiter call notification modal */}
+      {waiterCallNotification && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[100] p-4">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden animate-in zoom-in-95 duration-200">
+            {/* Orange header */}
+            <div className="bg-gradient-to-r from-orange-500 to-orange-600 px-6 py-4">
+              <div className="flex items-center gap-3">
+                <div className="w-12 h-12 rounded-full bg-white/20 flex items-center justify-center">
+                  <svg className="w-7 h-7 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
+                  </svg>
+                </div>
+                <div>
+                  <h2 className="text-xl font-bold text-white">Вызов официанта!</h2>
+                  <p className="text-orange-100 text-sm">Стол №{waiterCallNotification.tableNumber}</p>
+                </div>
+              </div>
+            </div>
+
+            {/* Content */}
+            <div className="p-6">
+              <div className="bg-orange-50 border border-orange-200 rounded-xl p-4 mb-4">
+                <div className="flex items-start gap-3">
+                  <div className="w-10 h-10 rounded-lg bg-orange-100 flex items-center justify-center flex-shrink-0">
+                    <svg className="w-5 h-5 text-orange-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                    </svg>
+                  </div>
+                  <div className="flex-1">
+                    <p className="font-semibold text-orange-900 text-lg">
+                      {waiterCallNotification.tableName}
+                    </p>
+                    {waiterCallNotification.guestPhone && (
+                      <p className="text-orange-600 mt-2 text-sm">
+                        Телефон: {waiterCallNotification.guestPhone}
+                      </p>
+                    )}
+                  </div>
+                </div>
+              </div>
+
+              <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 mb-4">
+                <p className="text-amber-800 text-center font-medium">
+                  Гость ожидает официанта
+                </p>
+              </div>
+
+              <Button
+                onClick={() => setWaiterCallNotification(null)}
                 className="w-full"
                 variant="primary"
               >

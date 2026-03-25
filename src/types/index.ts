@@ -339,6 +339,9 @@ export interface SessionOrder {
   customerName?: string;
   customerPhone?: string;
   deliveryFee?: number;
+  // Waiter call feature
+  waiterCalled?: boolean;
+  waiterCalledAt?: string;
   // JURA TEMPORARILY DISABLED - keeping fields for backwards compatibility
   juraOrderId?: string;
   juraStatusId?: number;

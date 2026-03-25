@@ -155,8 +155,8 @@ export default function TablesPage() {
     <AdminLayout>
       <div className="flex items-center justify-between mb-6">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Столы</h1>
-          <p className="text-gray-500 mt-1">Управление столами ресторанов</p>
+          <h1 className="text-2xl font-bold text-[var(--text-primary)]">Столы</h1>
+          <p className="text-[var(--text-secondary)] mt-1">Управление столами ресторанов</p>
         </div>
         <Button onClick={openCreateModal} disabled={restaurants.length === 0}>
           <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -193,14 +193,14 @@ export default function TablesPage() {
       </div>
 
       {loading ? (
-        <div className="bg-white rounded-xl shadow-sm overflow-hidden">
+        <div className="bg-[var(--bg-surface)] rounded-xl shadow-sm overflow-hidden border border-[var(--border-primary)] theme-transition">
           <div className="animate-pulse p-6">
             {[1, 2, 3, 4, 5].map((i) => (
-              <div key={i} className="flex gap-4 py-3 border-b border-gray-100 last:border-0">
-                <div className="h-4 w-16 bg-gray-200 rounded"></div>
-                <div className="h-4 w-32 bg-gray-200 rounded"></div>
-                <div className="h-4 w-24 bg-gray-200 rounded"></div>
-                <div className="h-4 w-20 bg-gray-200 rounded"></div>
+              <div key={i} className="flex gap-4 py-3 border-b border-[var(--border-primary)] last:border-0">
+                <div className="h-4 w-16 bg-[var(--bg-muted)] rounded"></div>
+                <div className="h-4 w-32 bg-[var(--bg-muted)] rounded"></div>
+                <div className="h-4 w-24 bg-[var(--bg-muted)] rounded"></div>
+                <div className="h-4 w-20 bg-[var(--bg-muted)] rounded"></div>
               </div>
             ))}
           </div>
@@ -211,11 +211,11 @@ export default function TablesPage() {
         );
 
         return filteredTables.length === 0 ? (
-        <div className="text-center py-12 bg-white rounded-xl">
-          <svg className="w-16 h-16 mx-auto text-gray-300 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <div className="text-center py-12 bg-[var(--bg-surface)] rounded-xl border border-[var(--border-primary)] theme-transition">
+          <svg className="w-16 h-16 mx-auto text-[var(--text-muted)] mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h7" />
           </svg>
-          <p className="text-gray-500 mb-4">
+          <p className="text-[var(--text-secondary)] mb-4">
             {selectedType ? 'Столы выбранного типа не найдены' : 'Столы не найдены'}
           </p>
           <Button onClick={openCreateModal} disabled={restaurants.length === 0}>
@@ -223,45 +223,45 @@ export default function TablesPage() {
           </Button>
         </div>
       ) : (
-        <div className="bg-white rounded-xl shadow-sm overflow-hidden">
-          <div className="px-6 py-3 bg-gray-50 border-b border-gray-200 flex items-center justify-between">
-            <span className="text-sm text-gray-500">
+        <div className="bg-[var(--bg-surface)] rounded-xl shadow-sm overflow-hidden border border-[var(--border-primary)] theme-transition">
+          <div className="px-6 py-3 bg-[var(--bg-secondary)] border-b border-[var(--border-primary)] flex items-center justify-between">
+            <span className="text-sm text-[var(--text-secondary)]">
               Найдено: {filteredTables.length} {filteredTables.length === 1 ? 'стол' : filteredTables.length < 5 ? 'стола' : 'столов'}
             </span>
           </div>
           <table className="w-full">
             <thead>
-              <tr className="bg-gray-50 border-b border-gray-200">
-                <th className="text-left px-6 py-3 text-xs font-medium text-gray-500 uppercase tracking-wider">Номер</th>
-                <th className="text-left px-6 py-3 text-xs font-medium text-gray-500 uppercase tracking-wider">Название</th>
-                <th className="text-left px-6 py-3 text-xs font-medium text-gray-500 uppercase tracking-wider">Тип</th>
-                <th className="text-left px-6 py-3 text-xs font-medium text-gray-500 uppercase tracking-wider">Вместимость</th>
-                <th className="text-left px-6 py-3 text-xs font-medium text-gray-500 uppercase tracking-wider">Меню</th>
-                <th className="text-left px-6 py-3 text-xs font-medium text-gray-500 uppercase tracking-wider">Статус</th>
-                <th className="text-right px-6 py-3 text-xs font-medium text-gray-500 uppercase tracking-wider">Действия</th>
+              <tr className="bg-[var(--bg-secondary)] border-b border-[var(--border-primary)]">
+                <th className="text-left px-6 py-3 text-xs font-medium text-[var(--text-secondary)] uppercase tracking-wider">Номер</th>
+                <th className="text-left px-6 py-3 text-xs font-medium text-[var(--text-secondary)] uppercase tracking-wider">Название</th>
+                <th className="text-left px-6 py-3 text-xs font-medium text-[var(--text-secondary)] uppercase tracking-wider">Тип</th>
+                <th className="text-left px-6 py-3 text-xs font-medium text-[var(--text-secondary)] uppercase tracking-wider">Вместимость</th>
+                <th className="text-left px-6 py-3 text-xs font-medium text-[var(--text-secondary)] uppercase tracking-wider">Меню</th>
+                <th className="text-left px-6 py-3 text-xs font-medium text-[var(--text-secondary)] uppercase tracking-wider">Статус</th>
+                <th className="text-right px-6 py-3 text-xs font-medium text-[var(--text-secondary)] uppercase tracking-wider">Действия</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-gray-200">
+            <tbody className="divide-y divide-[var(--border-primary)]">
               {filteredTables.map((table) => (
-                <tr key={table.id} className="hover:bg-gray-50">
+                <tr key={table.id} className="hover:bg-[var(--bg-hover)]">
                   <td className="px-6 py-4">
-                    <span className="text-lg font-semibold text-gray-900">#{table.number}</span>
+                    <span className="text-lg font-semibold text-[var(--text-primary)]">#{table.number}</span>
                   </td>
-                  <td className="px-6 py-4 text-sm text-gray-700">{table.name || '-'}</td>
+                  <td className="px-6 py-4 text-sm text-[var(--text-primary)]">{table.name || '-'}</td>
                   <td className="px-6 py-4">
-                    <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-700">
+                    <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-[var(--bg-secondary)] text-[var(--text-primary)]">
                       {table.typeName}
                     </span>
                   </td>
-                  <td className="px-6 py-4 text-sm text-gray-700">{table.capacity} чел.</td>
-                  <td className="px-6 py-4 text-sm text-gray-700">{table.menuName || '-'}</td>
+                  <td className="px-6 py-4 text-sm text-[var(--text-primary)]">{table.capacity} чел.</td>
+                  <td className="px-6 py-4 text-sm text-[var(--text-primary)]">{table.menuName || '-'}</td>
                   <td className="px-6 py-4">
                     <button
                       onClick={() => handleToggle(table.id)}
                       className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
                         table.isActive
-                          ? 'bg-green-100 text-green-700'
-                          : 'bg-gray-100 text-gray-600'
+                          ? 'bg-[var(--status-success-bg)] text-[var(--status-success)]'
+                          : 'bg-[var(--bg-secondary)] text-[var(--text-secondary)]'
                       }`}
                     >
                       {table.isActive ? 'Активен' : 'Неактивен'}
@@ -271,7 +271,7 @@ export default function TablesPage() {
                     <div className="flex justify-end gap-2">
                       <button
                         onClick={() => openEditModal(table)}
-                        className="p-2 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+                        className="p-2 text-[var(--text-muted)] hover:text-[var(--primary)] hover:bg-[var(--primary-bg)] rounded-lg transition-colors"
                       >
                         <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
@@ -279,7 +279,7 @@ export default function TablesPage() {
                       </button>
                       <button
                         onClick={() => handleDelete(table.id)}
-                        className="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                        className="p-2 text-[var(--text-muted)] hover:text-[var(--status-error)] hover:bg-[var(--status-error-bg)] rounded-lg transition-colors"
                       >
                         <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />

@@ -172,8 +172,8 @@ export default function CategoriesPage() {
     <AdminLayout>
       <div className="flex items-center justify-between mb-6">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Категории</h1>
-          <p className="text-gray-500 mt-1">Управление категориями меню</p>
+          <h1 className="text-2xl font-bold text-[var(--text-primary)]">Категории</h1>
+          <p className="text-[var(--text-secondary)] mt-1">Управление категориями меню</p>
         </div>
         <Button onClick={openCreateModal}>
           <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -186,19 +186,19 @@ export default function CategoriesPage() {
       {loading ? (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
           {[1, 2, 3, 4].map((i) => (
-            <div key={i} className="bg-white rounded-xl p-6 animate-pulse">
-              <div className="h-12 w-12 bg-gray-200 rounded-lg mb-4"></div>
-              <div className="h-5 w-3/4 bg-gray-200 rounded mb-2"></div>
-              <div className="h-4 w-1/2 bg-gray-200 rounded"></div>
+            <div key={i} className="bg-[var(--bg-surface)] rounded-xl p-6 animate-pulse border border-[var(--border-primary)] theme-transition">
+              <div className="h-12 w-12 bg-[var(--bg-secondary)] rounded-lg mb-4"></div>
+              <div className="h-5 w-3/4 bg-[var(--bg-secondary)] rounded mb-2"></div>
+              <div className="h-4 w-1/2 bg-[var(--bg-secondary)] rounded"></div>
             </div>
           ))}
         </div>
       ) : categories.length === 0 ? (
-        <div className="text-center py-12 bg-white rounded-xl">
-          <svg className="w-16 h-16 mx-auto text-gray-300 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <div className="text-center py-12 bg-[var(--bg-surface)] rounded-xl border border-[var(--border-primary)] theme-transition">
+          <svg className="w-16 h-16 mx-auto text-[var(--text-muted)] mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z" />
           </svg>
-          <p className="text-gray-500 mb-4">Категории не найдены</p>
+          <p className="text-[var(--text-secondary)] mb-4">Категории не найдены</p>
           <Button onClick={openCreateModal}>Добавить категорию</Button>
         </div>
       ) : (
@@ -206,9 +206,9 @@ export default function CategoriesPage() {
           {getCategoriesWithChildren().map((category) => (
             <div key={category.id}>
               {/* Parent category */}
-              <div className={`bg-white rounded-xl p-6 shadow-sm ${category.isTemporarilyDisabled ? 'opacity-60 border-2 border-red-200' : ''}`}>
+              <div className={`bg-[var(--bg-surface)] rounded-xl p-6 shadow-sm border border-[var(--border-primary)] theme-transition ${category.isTemporarilyDisabled ? 'opacity-60 border-2 border-[var(--status-error)]' : ''}`}>
                 <div className="flex items-start justify-between mb-4">
-                  <div className="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center text-blue-600">
+                  <div className="w-12 h-12 bg-[var(--primary-bg)] rounded-lg flex items-center justify-center text-[var(--primary)]">
                     <span className="material-icons text-2xl">{category.icon || 'restaurant'}</span>
                   </div>
                   <div className="flex gap-1">
@@ -218,8 +218,8 @@ export default function CategoriesPage() {
                       disabled={togglingId === category.id}
                       className={`p-2 rounded-lg transition-colors disabled:opacity-50 ${
                         category.isTemporarilyDisabled
-                          ? 'text-red-500 hover:text-red-600 hover:bg-red-50'
-                          : 'text-green-500 hover:text-green-600 hover:bg-green-50'
+                          ? 'text-[var(--status-error)] hover:bg-[var(--status-error-bg)]'
+                          : 'text-[var(--status-success)] hover:bg-[var(--status-success-bg)]'
                       }`}
                       title={category.isTemporarilyDisabled ? 'Включить категорию' : 'Отключить категорию'}
                     >
@@ -236,7 +236,7 @@ export default function CategoriesPage() {
                     {/* Schedule button */}
                     <button
                       onClick={() => openScheduleModal(category)}
-                      className="p-2 text-gray-400 hover:text-purple-600 hover:bg-purple-50 rounded-lg transition-colors"
+                      className="p-2 text-[var(--text-muted)] hover:text-[var(--status-info)] hover:bg-[var(--status-info-bg)] rounded-lg transition-colors"
                       title="Настроить расписание"
                     >
                       <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -245,7 +245,7 @@ export default function CategoriesPage() {
                     </button>
                     <button
                       onClick={() => openEditModal(category)}
-                      className="p-2 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+                      className="p-2 text-[var(--text-muted)] hover:text-[var(--primary)] hover:bg-[var(--primary-bg)] rounded-lg transition-colors"
                     >
                       <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
@@ -253,7 +253,7 @@ export default function CategoriesPage() {
                     </button>
                     <button
                       onClick={() => handleDelete(category.id)}
-                      className="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                      className="p-2 text-[var(--text-muted)] hover:text-[var(--status-error)] hover:bg-[var(--status-error-bg)] rounded-lg transition-colors"
                     >
                       <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
@@ -262,22 +262,22 @@ export default function CategoriesPage() {
                   </div>
                 </div>
 
-                <h3 className="text-lg font-semibold text-gray-900 mb-1">{category.name}</h3>
-                <div className="flex items-center gap-4 text-sm text-gray-500 flex-wrap">
+                <h3 className="text-lg font-semibold text-[var(--text-primary)] mb-1">{category.name}</h3>
+                <div className="flex items-center gap-4 text-sm text-[var(--text-secondary)] flex-wrap">
                   <span>Порядок: {category.sortOrder}</span>
                   <span>{category.productCount || 0} продуктов</span>
                   {category.isTemporarilyDisabled && (
-                    <span className="px-2 py-0.5 bg-red-100 text-red-700 rounded-full text-xs font-medium">
+                    <span className="px-2 py-0.5 bg-[var(--status-error-bg)] text-[var(--status-error)] rounded-full text-xs font-medium">
                       Временно отключена
                     </span>
                   )}
                   {(category.availableFrom || category.availableTo) && (
-                    <span className="px-2 py-0.5 bg-purple-100 text-purple-700 rounded-full text-xs font-medium">
+                    <span className="px-2 py-0.5 bg-[var(--status-info-bg)] text-[var(--status-info)] rounded-full text-xs font-medium">
                       {formatTime(category.availableFrom) || '00:00'} - {formatTime(category.availableTo) || '23:59'}
                     </span>
                   )}
                   {!category.isCurrentlyAvailable && !category.isTemporarilyDisabled && (
-                    <span className="px-2 py-0.5 bg-orange-100 text-orange-700 rounded-full text-xs font-medium">
+                    <span className="px-2 py-0.5 bg-[var(--status-pending-bg)] text-[var(--status-pending)] rounded-full text-xs font-medium">
                       Вне рабочего времени
                     </span>
                   )}
@@ -288,21 +288,21 @@ export default function CategoriesPage() {
               {category.children && category.children.length > 0 && (
                 <div className="ml-8 mt-2 space-y-2">
                   {category.children.map((child) => (
-                    <div key={child.id} className="bg-gray-50 rounded-xl p-4 shadow-sm border-l-4 border-blue-300">
+                    <div key={child.id} className="bg-[var(--bg-secondary)] rounded-xl p-4 shadow-sm border-l-4 border-[var(--primary)] theme-transition">
                       <div className="flex items-center justify-between">
                         <div className="flex items-center gap-3">
-                          <div className="w-8 h-8 bg-blue-50 rounded-lg flex items-center justify-center text-blue-500">
+                          <div className="w-8 h-8 bg-[var(--primary-bg)] rounded-lg flex items-center justify-center text-[var(--primary)]">
                             <span className="material-icons text-lg">{child.icon || 'restaurant'}</span>
                           </div>
                           <div>
-                            <h4 className="font-medium text-gray-900">{child.name}</h4>
-                            <span className="text-xs text-gray-500">{child.productCount || 0} продуктов</span>
+                            <h4 className="font-medium text-[var(--text-primary)]">{child.name}</h4>
+                            <span className="text-xs text-[var(--text-muted)]">{child.productCount || 0} продуктов</span>
                           </div>
                         </div>
                         <div className="flex gap-1">
                           <button
                             onClick={() => openEditModal(child)}
-                            className="p-2 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+                            className="p-2 text-[var(--text-muted)] hover:text-[var(--primary)] hover:bg-[var(--primary-bg)] rounded-lg transition-colors"
                           >
                             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
@@ -310,7 +310,7 @@ export default function CategoriesPage() {
                           </button>
                           <button
                             onClick={() => handleDelete(child.id)}
-                            className="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                            className="p-2 text-[var(--text-muted)] hover:text-[var(--status-error)] hover:bg-[var(--status-error-bg)] rounded-lg transition-colors"
                           >
                             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
@@ -345,7 +345,7 @@ export default function CategoriesPage() {
           />
 
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
+            <label className="block text-sm font-medium text-[var(--text-primary)] mb-2">
               Иконка
             </label>
             <div className="grid grid-cols-5 gap-2">
@@ -356,11 +356,11 @@ export default function CategoriesPage() {
                   onClick={() => setFormData({ ...formData, icon })}
                   className={`p-3 rounded-lg border-2 transition-colors flex items-center justify-center ${
                     formData.icon === icon
-                      ? 'border-blue-500 bg-blue-50'
-                      : 'border-gray-200 hover:border-gray-300'
+                      ? 'border-[var(--primary)] bg-[var(--primary-bg)]'
+                      : 'border-[var(--border-primary)] hover:border-[var(--border-secondary)]'
                   }`}
                 >
-                  <span className="material-icons text-xl">{icon}</span>
+                  <span className="material-icons text-xl text-[var(--text-primary)]">{icon}</span>
                 </button>
               ))}
             </div>
@@ -408,7 +408,7 @@ export default function CategoriesPage() {
         size="sm"
       >
         <div className="space-y-4">
-          <p className="text-sm text-gray-500">
+          <p className="text-sm text-[var(--text-secondary)]">
             Укажите время, когда категория будет доступна. Например, для категории "Завтрак" установите 07:00 - 11:00.
           </p>
 
@@ -428,8 +428,8 @@ export default function CategoriesPage() {
             onChange={(e) => setScheduleData({ ...scheduleData, availableTo: e.target.value })}
           />
 
-          <div className="p-3 bg-blue-50 rounded-lg">
-            <p className="text-sm text-blue-700">
+          <div className="p-3 bg-[var(--primary-bg)] rounded-lg">
+            <p className="text-sm text-[var(--primary)]">
               Если оба поля пустые - категория доступна всегда.
               Если заполнить только одно поле - будет использовано ограничение с одной стороны.
             </p>

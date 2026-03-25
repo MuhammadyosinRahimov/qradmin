@@ -154,13 +154,13 @@ export default function QrCodesPage() {
   return (
     <AdminLayout>
       <div className="mb-6">
-        <h1 className="text-2xl font-bold text-gray-900">Генерация QR-кодов</h1>
-        <p className="text-gray-500 mt-1">Создание QR-кодов для столов с выбором меню</p>
+        <h1 className="text-2xl font-bold text-[var(--text-primary)]">Генерация QR-кодов</h1>
+        <p className="text-[var(--text-secondary)] mt-1">Создание QR-кодов для столов с выбором меню</p>
       </div>
 
       {/* Settings */}
-      <div className="bg-white rounded-xl p-6 shadow-sm mb-6">
-        <h2 className="text-lg font-semibold text-gray-900 mb-4">Настройки генерации</h2>
+      <div className="bg-[var(--bg-surface)] rounded-xl p-6 shadow-sm mb-6 border border-[var(--border-primary)] theme-transition">
+        <h2 className="text-lg font-semibold text-[var(--text-primary)] mb-4">Настройки генерации</h2>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           <Select
             id="restaurant-filter"
@@ -199,9 +199,9 @@ export default function QrCodesPage() {
       </div>
 
       {/* Tables selection */}
-      <div className="bg-white rounded-xl p-6 shadow-sm mb-6">
+      <div className="bg-[var(--bg-surface)] rounded-xl p-6 shadow-sm mb-6 border border-[var(--border-primary)] theme-transition">
         <div className="flex items-center justify-between mb-4">
-          <h2 className="text-lg font-semibold text-gray-900">
+          <h2 className="text-lg font-semibold text-[var(--text-primary)]">
             Выберите столы ({selectedTables.length} из {tables.length})
           </h2>
           <div className="flex gap-2">
@@ -224,14 +224,14 @@ export default function QrCodesPage() {
         {loading ? (
           <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4">
             {[1, 2, 3, 4, 5, 6].map((i) => (
-              <div key={i} className="animate-pulse p-4 border border-gray-200 rounded-xl">
-                <div className="h-8 w-8 bg-gray-200 rounded-full mx-auto mb-2"></div>
-                <div className="h-4 w-16 bg-gray-200 rounded mx-auto"></div>
+              <div key={i} className="animate-pulse p-4 border border-[var(--border-primary)] rounded-xl">
+                <div className="h-8 w-8 bg-[var(--bg-secondary)] rounded-full mx-auto mb-2"></div>
+                <div className="h-4 w-16 bg-[var(--bg-secondary)] rounded mx-auto"></div>
               </div>
             ))}
           </div>
         ) : tables.length === 0 ? (
-          <div className="text-center py-8 text-gray-500">
+          <div className="text-center py-8 text-[var(--text-muted)]">
             Столы не найдены. Сначала создайте столы.
           </div>
         ) : (
@@ -242,18 +242,18 @@ export default function QrCodesPage() {
                 onClick={() => toggleTableSelection(table.id)}
                 className={`p-4 border-2 rounded-xl text-center transition-all ${
                   selectedTables.includes(table.id)
-                    ? 'border-blue-500 bg-blue-50'
-                    : 'border-gray-200 hover:border-gray-300'
+                    ? 'border-[var(--primary)] bg-[var(--primary-bg)]'
+                    : 'border-[var(--border-primary)] hover:border-[var(--border-secondary)]'
                 }`}
               >
                 <div className={`text-2xl font-bold ${
-                  selectedTables.includes(table.id) ? 'text-blue-600' : 'text-gray-900'
+                  selectedTables.includes(table.id) ? 'text-[var(--primary)]' : 'text-[var(--text-primary)]'
                 }`}>
                   #{table.number}
                 </div>
-                <div className="text-sm text-gray-500 truncate">{table.name || table.typeName}</div>
+                <div className="text-sm text-[var(--text-secondary)] truncate">{table.name || table.typeName}</div>
                 {table.menuName && (
-                  <div className="mt-1 text-xs text-green-600">
+                  <div className="mt-1 text-xs text-[var(--status-success)]">
                     {table.menuName}
                   </div>
                 )}
@@ -284,7 +284,7 @@ export default function QrCodesPage() {
             {qrCodes.map((qr) => (
               <div
                 key={qr.tableId}
-                className="border-2 border-gray-200 rounded-xl p-4 text-center"
+                className="border-2 border-[var(--border-primary)] rounded-xl p-4 text-center bg-[var(--bg-surface)]"
               >
                 <img
                   src={`data:image/png;base64,${qr.qrCodeBase64}`}
@@ -292,9 +292,9 @@ export default function QrCodesPage() {
                   className="mx-auto mb-3"
                   style={{ maxWidth: '150px' }}
                 />
-                <div className="text-xl font-bold text-gray-900">Стол #{qr.tableNumber}</div>
+                <div className="text-xl font-bold text-[var(--text-primary)]">Стол #{qr.tableNumber}</div>
                 {qr.tableName && (
-                  <div className="text-sm text-gray-500">{qr.tableName}</div>
+                  <div className="text-sm text-[var(--text-secondary)]">{qr.tableName}</div>
                 )}
                 <div className="mt-2">
                   <Button

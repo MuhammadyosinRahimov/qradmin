@@ -3,6 +3,7 @@
 import { useEffect, useState, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuthStore } from '@/stores/authStore';
+import { ThemeProvider } from '@/contexts/ThemeContext';
 import Sidebar from './Sidebar';
 import ToastProvider from '../ui/ToastProvider';
 
@@ -12,7 +13,7 @@ interface AdminLayoutProps {
 
 const SIDEBAR_COLLAPSED_KEY = 'sidebar-collapsed';
 
-export default function AdminLayout({ children }: AdminLayoutProps) {
+function AdminLayoutContent({ children }: AdminLayoutProps) {
   const router = useRouter();
   const [mounted, setMounted] = useState(false);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
@@ -53,14 +54,14 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
 
   if (!mounted || !isAuthenticated) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-slate-50">
+      <div className="min-h-screen flex items-center justify-center bg-[var(--bg-primary)]">
         <div className="flex flex-col items-center gap-3">
-          <div className="w-10 h-10 rounded bg-blue-600 flex items-center justify-center">
+          <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-[var(--primary)] to-[var(--primary-muted)] flex items-center justify-center shadow-lg shadow-[var(--primary)]/20">
             <svg className="w-5 h-5 text-white animate-pulse" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v1m6 11h2m-6 0h-2v4m0-11v3m0 0h.01M12 12h4.01M16 20h2M4 12h4m12 0h.01M5 8h2a1 1 0 001-1V5a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1z" />
             </svg>
           </div>
-          <p className="text-sm text-slate-500 font-medium">Загрузка...</p>
+          <p className="text-sm text-[var(--text-secondary)] font-medium">Загрузка...</p>
         </div>
       </div>
     );
@@ -68,7 +69,7 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
 
   return (
     <ToastProvider>
-      <div className="min-h-screen bg-slate-50">
+      <div className="min-h-screen bg-[var(--bg-primary)] theme-transition">
         <Sidebar isCollapsed={sidebarCollapsed} onToggle={handleSidebarToggle} />
         <main
           className={`
@@ -82,5 +83,13 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
         </main>
       </div>
     </ToastProvider>
+  );
+}
+
+export default function AdminLayout({ children }: AdminLayoutProps) {
+  return (
+    <ThemeProvider>
+      <AdminLayoutContent>{children}</AdminLayoutContent>
+    </ThemeProvider>
   );
 }

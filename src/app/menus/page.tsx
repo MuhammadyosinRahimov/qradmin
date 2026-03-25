@@ -133,8 +133,8 @@ export default function MenusPage() {
     <AdminLayout>
       <div className="flex items-center justify-between mb-6">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Меню</h1>
-          <p className="text-gray-500 mt-1">Управление меню ресторанов</p>
+          <h1 className="text-2xl font-bold text-[var(--text-primary)]">Меню</h1>
+          <p className="text-[var(--text-secondary)] mt-1">Управление меню ресторанов</p>
         </div>
         <Button onClick={openCreateModal} disabled={restaurants.length === 0}>
           <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -162,19 +162,19 @@ export default function MenusPage() {
       {loading ? (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {[1, 2, 3].map((i) => (
-            <div key={i} className="bg-white rounded-xl p-6 animate-pulse">
-              <div className="h-6 w-3/4 bg-gray-200 rounded mb-4"></div>
-              <div className="h-4 w-full bg-gray-200 rounded mb-2"></div>
-              <div className="h-4 w-2/3 bg-gray-200 rounded"></div>
+            <div key={i} className="bg-[var(--bg-surface)] rounded-xl p-6 animate-pulse border border-[var(--border-primary)] theme-transition">
+              <div className="h-6 w-3/4 bg-[var(--bg-muted)] rounded mb-4"></div>
+              <div className="h-4 w-full bg-[var(--bg-muted)] rounded mb-2"></div>
+              <div className="h-4 w-2/3 bg-[var(--bg-muted)] rounded"></div>
             </div>
           ))}
         </div>
       ) : menus.length === 0 ? (
-        <div className="text-center py-12 bg-white rounded-xl">
-          <svg className="w-16 h-16 mx-auto text-gray-300 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <div className="text-center py-12 bg-[var(--bg-surface)] rounded-xl border border-[var(--border-primary)] theme-transition">
+          <svg className="w-16 h-16 mx-auto text-[var(--text-muted)] mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
           </svg>
-          <p className="text-gray-500 mb-4">Меню не найдено</p>
+          <p className="text-[var(--text-secondary)] mb-4">Меню не найдено</p>
           <Button onClick={openCreateModal} disabled={restaurants.length === 0}>
             Создать меню
           </Button>
@@ -182,16 +182,16 @@ export default function MenusPage() {
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {menus.map((menu) => (
-            <div key={menu.id} className="bg-white rounded-xl p-6 shadow-sm">
+            <div key={menu.id} className="bg-[var(--bg-surface)] rounded-xl p-6 shadow-sm border border-[var(--border-primary)] theme-transition">
               <div className="flex items-start justify-between mb-4">
                 <div>
-                  <h3 className="text-lg font-semibold text-gray-900">{menu.name}</h3>
-                  <p className="text-sm text-gray-500">{menu.restaurantName}</p>
+                  <h3 className="text-lg font-semibold text-[var(--text-primary)]">{menu.name}</h3>
+                  <p className="text-sm text-[var(--text-secondary)]">{menu.restaurantName}</p>
                 </div>
                 <div className="flex gap-2">
                   <button
                     onClick={() => openEditModal(menu)}
-                    className="p-2 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+                    className="p-2 text-[var(--text-muted)] hover:text-[var(--primary)] hover:bg-[var(--primary-bg)] rounded-lg transition-colors"
                   >
                     <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
@@ -199,7 +199,7 @@ export default function MenusPage() {
                   </button>
                   <button
                     onClick={() => handleDelete(menu.id)}
-                    className="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                    className="p-2 text-[var(--text-muted)] hover:text-[var(--status-error)] hover:bg-[var(--status-error-bg)] rounded-lg transition-colors"
                   >
                     <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
@@ -209,24 +209,24 @@ export default function MenusPage() {
               </div>
 
               {menu.description && (
-                <p className="text-sm text-gray-500 mb-4">{menu.description}</p>
+                <p className="text-sm text-[var(--text-secondary)] mb-4">{menu.description}</p>
               )}
 
               <div className="space-y-2">
-                <p className="text-sm font-medium text-gray-700">Категории:</p>
+                <p className="text-sm font-medium text-[var(--text-primary)]">Категории:</p>
                 <div className="flex flex-wrap gap-2">
                   {menu.categories.length > 0 ? (
                     menu.categories.map((cat) => (
                       <span
                         key={cat.id}
-                        className="inline-flex items-center px-2.5 py-1 text-xs font-medium bg-blue-50 text-blue-700 rounded-full"
+                        className="inline-flex items-center px-2.5 py-1 text-xs font-medium bg-[var(--primary-bg)] text-[var(--primary)] rounded-full"
                       >
                         {cat.categoryName}
-                        <span className="ml-1 text-blue-500">({cat.productCount})</span>
+                        <span className="ml-1 text-[var(--primary)]">({cat.productCount})</span>
                       </span>
                     ))
                   ) : (
-                    <span className="text-sm text-gray-400">Нет категорий</span>
+                    <span className="text-sm text-[var(--text-muted)]">Нет категорий</span>
                   )}
                 </div>
               </div>
@@ -271,26 +271,26 @@ export default function MenusPage() {
           )}
 
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
+            <label className="block text-sm font-medium text-[var(--text-primary)] mb-2">
               Категории меню
             </label>
-            <div className="grid grid-cols-2 gap-2 max-h-48 overflow-y-auto p-2 border border-gray-200 rounded-lg">
+            <div className="grid grid-cols-2 gap-2 max-h-48 overflow-y-auto p-2 border border-[var(--border-primary)] rounded-lg">
               {categories.map((category) => (
                 <label
                   key={category.id}
                   className={`flex items-center gap-2 p-2 rounded-lg cursor-pointer transition-colors ${
                     formData.categoryIds.includes(category.id)
-                      ? 'bg-blue-50 border-blue-200'
-                      : 'hover:bg-gray-50'
+                      ? 'bg-[var(--primary-bg)] border-[var(--primary-border)]'
+                      : 'hover:bg-[var(--bg-hover)]'
                   }`}
                 >
                   <input
                     type="checkbox"
                     checked={formData.categoryIds.includes(category.id)}
                     onChange={() => toggleCategory(category.id)}
-                    className="w-4 h-4 text-blue-600 rounded border-gray-300 focus:ring-blue-500"
+                    className="w-4 h-4 text-[var(--primary)] rounded border-[var(--border-primary)] focus:ring-[var(--primary)]"
                   />
-                  <span className="text-sm text-gray-700">{category.name}</span>
+                  <span className="text-sm text-[var(--text-primary)]">{category.name}</span>
                 </label>
               ))}
             </div>

@@ -219,8 +219,8 @@ export default function RestaurantsPage() {
     <AdminLayout>
       <div className="flex items-center justify-between mb-6">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Рестораны</h1>
-          <p className="text-gray-500 mt-1">Управление ресторанами</p>
+          <h1 className="text-2xl font-bold text-[var(--text-primary)]">Рестораны</h1>
+          <p className="text-[var(--text-secondary)] mt-1">Управление ресторанами</p>
         </div>
         <Button onClick={openCreateModal}>
           <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -233,26 +233,26 @@ export default function RestaurantsPage() {
       {loading ? (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {[1, 2, 3].map((i) => (
-            <div key={i} className="bg-white rounded-xl p-6 animate-pulse">
-              <div className="h-32 bg-gray-200 rounded-lg mb-4"></div>
-              <div className="h-6 w-3/4 bg-gray-200 rounded mb-4"></div>
-              <div className="h-4 w-full bg-gray-200 rounded mb-2"></div>
-              <div className="h-4 w-2/3 bg-gray-200 rounded"></div>
+            <div key={i} className="bg-[var(--bg-surface)] border border-[var(--border-primary)] theme-transition rounded-xl p-6 animate-pulse">
+              <div className="h-32 bg-[var(--bg-muted)] rounded-lg mb-4"></div>
+              <div className="h-6 w-3/4 bg-[var(--bg-muted)] rounded mb-4"></div>
+              <div className="h-4 w-full bg-[var(--bg-muted)] rounded mb-2"></div>
+              <div className="h-4 w-2/3 bg-[var(--bg-muted)] rounded"></div>
             </div>
           ))}
         </div>
       ) : restaurants.length === 0 ? (
-        <div className="text-center py-12 bg-white rounded-xl">
-          <svg className="w-16 h-16 mx-auto text-gray-300 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <div className="text-center py-12 bg-[var(--bg-surface)] border border-[var(--border-primary)] theme-transition rounded-xl">
+          <svg className="w-16 h-16 mx-auto text-[var(--text-muted)] mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
           </svg>
-          <p className="text-gray-500 mb-4">Рестораны не найдены</p>
+          <p className="text-[var(--text-secondary)] mb-4">Рестораны не найдены</p>
           <Button onClick={openCreateModal}>Добавить ресторан</Button>
         </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {restaurants.map((restaurant) => (
-            <div key={restaurant.id} className="bg-white rounded-xl overflow-hidden shadow-sm hover:shadow-md transition-shadow">
+            <div key={restaurant.id} className="bg-[var(--bg-surface)] border border-[var(--border-primary)] theme-transition rounded-xl overflow-hidden shadow-sm hover:shadow-md transition-shadow">
               {/* Restaurant image */}
               <div className="h-32 bg-gradient-to-br from-orange-400 to-orange-500 relative">
                 {restaurant.logoUrl ? (
@@ -273,8 +273,8 @@ export default function RestaurantsPage() {
                   <span
                     className={`inline-flex items-center px-2 py-0.5 text-xs font-medium rounded-full ${
                       restaurant.isActive
-                        ? 'bg-green-100 text-green-700'
-                        : 'bg-gray-100 text-gray-600'
+                        ? 'bg-[var(--status-success-bg)] text-[var(--status-success)]'
+                        : 'bg-[var(--bg-secondary)] text-[var(--text-secondary)]'
                     }`}
                   >
                     {restaurant.isActive ? 'Активен' : 'Неактивен'}
@@ -285,20 +285,20 @@ export default function RestaurantsPage() {
               <div className="p-4">
                 <div className="flex items-start justify-between mb-2">
                   <div>
-                    <h3 className="text-lg font-semibold text-gray-900">{restaurant.name}</h3>
+                    <h3 className="text-lg font-semibold text-[var(--text-primary)]">{restaurant.name}</h3>
                     <div className="flex flex-wrap gap-1 mt-1">
                       {restaurant.onlinePaymentAvailable && (
-                        <span className="inline-flex items-center px-2 py-0.5 text-xs font-medium rounded-full bg-blue-100 text-blue-700">
+                        <span className="inline-flex items-center px-2 py-0.5 text-xs font-medium rounded-full bg-[var(--status-info-bg)] text-[var(--status-info)]">
                           Онлайн-оплата
                         </span>
                       )}
                       {restaurant.deliveryEnabled && (
-                        <span className="inline-flex items-center px-2 py-0.5 text-xs font-medium rounded-full bg-purple-100 text-purple-700">
+                        <span className="inline-flex items-center px-2 py-0.5 text-xs font-medium rounded-full bg-[var(--status-info-bg)] text-[var(--status-info)]">
                           Доставка
                         </span>
                       )}
                       {restaurant.takeawayEnabled && (
-                        <span className="inline-flex items-center px-2 py-0.5 text-xs font-medium rounded-full bg-teal-100 text-teal-700">
+                        <span className="inline-flex items-center px-2 py-0.5 text-xs font-medium rounded-full bg-[var(--status-success-bg)] text-[var(--status-success)]">
                           Самовывоз
                         </span>
                       )}
@@ -307,7 +307,7 @@ export default function RestaurantsPage() {
                   <div className="flex gap-1">
                     <button
                       onClick={() => openEditModal(restaurant)}
-                      className="p-2 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+                      className="p-2 text-[var(--text-muted)] hover:text-[var(--primary)] hover:bg-[var(--primary-bg)] rounded-lg transition-colors"
                     >
                       <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
@@ -315,7 +315,7 @@ export default function RestaurantsPage() {
                     </button>
                     <button
                       onClick={() => handleDelete(restaurant.id)}
-                      className="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                      className="p-2 text-[var(--text-muted)] hover:text-[var(--status-error)] hover:bg-[var(--status-error-bg)] rounded-lg transition-colors"
                     >
                       <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
@@ -325,13 +325,13 @@ export default function RestaurantsPage() {
                 </div>
 
                 {restaurant.description && (
-                  <p className="text-sm text-gray-500 mb-3 line-clamp-2">{restaurant.description}</p>
+                  <p className="text-sm text-[var(--text-secondary)] mb-3 line-clamp-2">{restaurant.description}</p>
                 )}
 
-                <div className="space-y-1.5 text-sm text-gray-600">
+                <div className="space-y-1.5 text-sm text-[var(--text-secondary)]">
                   {restaurant.address && (
                     <div className="flex items-center gap-2">
-                      <svg className="w-4 h-4 text-gray-400 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <svg className="w-4 h-4 text-[var(--text-muted)] flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
                       </svg>
@@ -340,7 +340,7 @@ export default function RestaurantsPage() {
                   )}
                   {restaurant.phone && (
                     <div className="flex items-center gap-2">
-                      <svg className="w-4 h-4 text-gray-400 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <svg className="w-4 h-4 text-[var(--text-muted)] flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" />
                       </svg>
                       <span>{restaurant.phone}</span>
@@ -348,14 +348,14 @@ export default function RestaurantsPage() {
                   )}
                 </div>
 
-                <div className="flex gap-4 mt-4 pt-3 border-t border-gray-100">
+                <div className="flex gap-4 mt-4 pt-3 border-t border-[var(--border-primary)]">
                   <div className="text-center">
-                    <p className="text-lg font-semibold text-gray-900">{restaurant.menuCount}</p>
-                    <p className="text-xs text-gray-500">Меню</p>
+                    <p className="text-lg font-semibold text-[var(--text-primary)]">{restaurant.menuCount}</p>
+                    <p className="text-xs text-[var(--text-secondary)]">Меню</p>
                   </div>
                   <div className="text-center">
-                    <p className="text-lg font-semibold text-gray-900">{restaurant.tableCount}</p>
-                    <p className="text-xs text-gray-500">Столов</p>
+                    <p className="text-lg font-semibold text-[var(--text-primary)]">{restaurant.tableCount}</p>
+                    <p className="text-xs text-[var(--text-secondary)]">Столов</p>
                   </div>
                 </div>
               </div>
@@ -375,14 +375,14 @@ export default function RestaurantsPage() {
           {/* Image upload section - only show when editing */}
           {editingRestaurant && (
             <div className="space-y-3">
-              <label className="block text-sm font-medium text-gray-700">
+              <label className="block text-sm font-medium text-[var(--text-primary)]">
                 Изображение ресторана
               </label>
 
               {/* Image preview */}
               <div className="relative">
                 {imagePreview ? (
-                  <div className="relative w-full h-40 rounded-xl overflow-hidden bg-gray-100">
+                  <div className="relative w-full h-40 rounded-xl overflow-hidden bg-[var(--bg-secondary)]">
                     <img
                       src={imagePreview}
                       alt="Preview"
@@ -392,7 +392,7 @@ export default function RestaurantsPage() {
                       <button
                         type="button"
                         onClick={() => fileInputRef.current?.click()}
-                        className="p-2 bg-white rounded-full text-gray-700 hover:bg-gray-100"
+                        className="p-2 bg-[var(--bg-surface)] rounded-full text-[var(--text-primary)] hover:bg-[var(--bg-secondary)]"
                       >
                         <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
@@ -414,13 +414,13 @@ export default function RestaurantsPage() {
                   <button
                     type="button"
                     onClick={() => fileInputRef.current?.click()}
-                    className="w-full h-40 rounded-xl border-2 border-dashed border-gray-300 hover:border-orange-400 transition-colors flex flex-col items-center justify-center gap-2 text-gray-500 hover:text-orange-500"
+                    className="w-full h-40 rounded-xl border-2 border-dashed border-[var(--border-primary)] hover:border-[var(--primary)] transition-colors flex flex-col items-center justify-center gap-2 text-[var(--text-secondary)] hover:text-[var(--primary)]"
                   >
                     <svg className="w-10 h-10" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
                     </svg>
                     <span className="text-sm font-medium">Загрузить изображение</span>
-                    <span className="text-xs text-gray-400">JPG, PNG, WebP до 5 МБ</span>
+                    <span className="text-xs text-[var(--text-muted)]">JPG, PNG, WebP до 5 МБ</span>
                   </button>
                 )}
 
@@ -483,8 +483,8 @@ export default function RestaurantsPage() {
 
           {/* Admin fields - only show when creating */}
           {!editingRestaurant && (
-            <div className="border-t border-gray-200 pt-4 mt-4 space-y-4">
-              <h3 className="text-sm font-medium text-gray-700">Администратор ресторана (необязательно)</h3>
+            <div className="border-t border-[var(--border-primary)] pt-4 mt-4 space-y-4">
+              <h3 className="text-sm font-medium text-[var(--text-primary)]">Администратор ресторана (необязательно)</h3>
               <Input
                 id="adminEmail"
                 label="Email администратора"
@@ -508,7 +508,7 @@ export default function RestaurantsPage() {
                 onChange={(e) => setFormData({ ...formData, adminName: e.target.value })}
                 placeholder="Имя администратора"
               />
-              <p className="text-xs text-gray-500">
+              <p className="text-xs text-[var(--text-secondary)]">
                 Изображение можно загрузить после создания ресторана
               </p>
             </div>
@@ -518,16 +518,16 @@ export default function RestaurantsPage() {
           {editingRestaurant && (
             <>
               {/* Delivery/Takeaway settings */}
-              <div className="border-t border-gray-200 pt-4 mt-4 space-y-4">
-                <h3 className="text-sm font-medium text-gray-700">Режимы заказа</h3>
+              <div className="border-t border-[var(--border-primary)] pt-4 mt-4 space-y-4">
+                <h3 className="text-sm font-medium text-[var(--text-primary)]">Режимы заказа</h3>
 
                 {/* Delivery toggle */}
-                <div className="flex items-center justify-between p-3 bg-purple-50 rounded-lg">
+                <div className="flex items-center justify-between p-3 bg-[var(--status-info-bg)] rounded-lg">
                   <div className="flex items-center gap-3">
-                    <svg className="w-5 h-5 text-purple-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <svg className="w-5 h-5 text-[var(--status-info)]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16V6a1 1 0 00-1-1H4a1 1 0 00-1 1v10a1 1 0 001 1h1m8-1a1 1 0 01-1 1H9m4-1V8a1 1 0 011-1h2.586a1 1 0 01.707.293l3.414 3.414a1 1 0 01.293.707V16a1 1 0 01-1 1h-1m-6-1a1 1 0 001 1h1M5 17a2 2 0 104 0m-4 0a2 2 0 114 0m6 0a2 2 0 104 0m-4 0a2 2 0 114 0" />
                     </svg>
-                    <span className="font-medium text-purple-700">Доставка</span>
+                    <span className="font-medium text-[var(--status-info)]">Доставка</span>
                   </div>
                   <label className="relative inline-flex items-center cursor-pointer">
                     <input
@@ -536,7 +536,7 @@ export default function RestaurantsPage() {
                       onChange={(e) => setFormData({ ...formData, deliveryEnabled: e.target.checked })}
                       className="sr-only peer"
                     />
-                    <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-purple-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-purple-500"></div>
+                    <div className="w-11 h-6 bg-[var(--bg-muted)] peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-[var(--status-info)] rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-[var(--border-primary)] after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-[var(--status-info)]"></div>
                   </label>
                 </div>
 
@@ -555,12 +555,12 @@ export default function RestaurantsPage() {
                 )}
 
                 {/* Takeaway toggle */}
-                <div className="flex items-center justify-between p-3 bg-teal-50 rounded-lg">
+                <div className="flex items-center justify-between p-3 bg-[var(--primary-bg)] rounded-lg">
                   <div className="flex items-center gap-3">
-                    <svg className="w-5 h-5 text-teal-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <svg className="w-5 h-5 text-[var(--primary)]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z" />
                     </svg>
-                    <span className="font-medium text-teal-700">Самовывоз</span>
+                    <span className="font-medium text-[var(--primary)]">Самовывоз</span>
                   </div>
                   <label className="relative inline-flex items-center cursor-pointer">
                     <input
@@ -569,14 +569,14 @@ export default function RestaurantsPage() {
                       onChange={(e) => setFormData({ ...formData, takeawayEnabled: e.target.checked })}
                       className="sr-only peer"
                     />
-                    <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-teal-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-teal-500"></div>
+                    <div className="w-11 h-6 bg-[var(--bg-muted)] peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-[var(--primary)] rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-[var(--border-primary)] after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-[var(--primary)]"></div>
                   </label>
                 </div>
               </div>
 
               {/* Service fee settings */}
-              <div className="border-t border-gray-200 pt-4 mt-4 space-y-4">
-                <h3 className="text-sm font-medium text-gray-700">Настройки обслуживания</h3>
+              <div className="border-t border-[var(--border-primary)] pt-4 mt-4 space-y-4">
+                <h3 className="text-sm font-medium text-[var(--text-primary)]">Настройки обслуживания</h3>
                 <Input
                   id="serviceFeePercent"
                   label="Процент обслуживания (%)"
@@ -588,14 +588,14 @@ export default function RestaurantsPage() {
                   onChange={(e) => setFormData({ ...formData, serviceFeePercent: e.target.value })}
                   placeholder="10"
                 />
-                <p className="text-xs text-gray-500">
+                <p className="text-xs text-[var(--text-secondary)]">
                   Процент обслуживания, который добавляется к сумме заказов. По умолчанию 10%.
                 </p>
               </div>
 
               {/* DC Bank settings */}
-              <div className="border-t border-gray-200 pt-4 mt-4 space-y-4">
-                <h3 className="text-sm font-medium text-gray-700">Настройки DC Bank</h3>
+              <div className="border-t border-[var(--border-primary)] pt-4 mt-4 space-y-4">
+                <h3 className="text-sm font-medium text-[var(--text-primary)]">Настройки DC Bank</h3>
                 <Input
                   id="dcMerchantId"
                   label="Merchant ID"
@@ -621,8 +621,8 @@ export default function RestaurantsPage() {
               </div>
 
               {/* Payment Link settings */}
-              <div className="border-t border-gray-200 pt-4 mt-4 space-y-4">
-                <h3 className="text-sm font-medium text-gray-700">Ссылка для оплаты (ExpressPay, DC, Alif и др.)</h3>
+              <div className="border-t border-[var(--border-primary)] pt-4 mt-4 space-y-4">
+                <h3 className="text-sm font-medium text-[var(--text-primary)]">Ссылка для оплаты (ExpressPay, DC, Alif и др.)</h3>
                 <Input
                   id="paymentLink"
                   label="Платёжная ссылка"
@@ -630,8 +630,8 @@ export default function RestaurantsPage() {
                   onChange={(e) => setFormData({ ...formData, paymentLink: e.target.value })}
                   placeholder="http://pay.expresspay.tj/?A=9762000087892609&s={amount}&c=&f1=133"
                 />
-                <p className="text-xs text-gray-500">
-                  Используйте <code className="bg-gray-100 px-1 rounded">{'{amount}'}</code> для автоподстановки суммы заказа
+                <p className="text-xs text-[var(--text-secondary)]">
+                  Используйте <code className="bg-[var(--bg-secondary)] px-1 rounded">{'{amount}'}</code> для автоподстановки суммы заказа
                 </p>
               </div>
 

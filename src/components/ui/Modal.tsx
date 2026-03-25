@@ -9,6 +9,7 @@ interface ModalProps {
   children: ReactNode;
   size?: 'sm' | 'md' | 'lg' | 'xl' | '2xl' | '4xl' | 'full';
   showCloseButton?: boolean;
+  footer?: ReactNode;
 }
 
 export default function Modal({
@@ -18,6 +19,7 @@ export default function Modal({
   children,
   size = 'md',
   showCloseButton = true,
+  footer,
 }: ModalProps) {
   // Handle escape key
   useEffect(() => {
@@ -51,21 +53,26 @@ export default function Modal({
       <div className="flex min-h-screen items-center justify-center p-4">
         {/* Backdrop */}
         <div
-          className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm animate-fade-in"
+          className="fixed inset-0 bg-[var(--bg-primary)]/80 backdrop-blur-sm animate-fade-in"
           onClick={onClose}
         />
 
         {/* Modal */}
         <div
-          className={`relative w-full ${sizeClasses[size]} bg-white rounded-md shadow-lg border border-slate-200 animate-scale-in`}
+          className={`
+            relative w-full ${sizeClasses[size]}
+            bg-[var(--bg-elevated)] rounded-xl
+            shadow-2xl border border-[var(--border-primary)]
+            animate-scale-in theme-transition
+          `}
         >
           {/* Header */}
-          <div className="flex items-center justify-between px-4 py-3 border-b border-slate-200">
-            <h3 className="text-base font-semibold text-slate-900">{title}</h3>
+          <div className="flex items-center justify-between px-5 py-4 border-b border-[var(--border-primary)]">
+            <h3 className="text-base font-semibold text-[var(--text-primary)]">{title}</h3>
             {showCloseButton && (
               <button
                 onClick={onClose}
-                className="p-1.5 text-slate-400 hover:text-slate-600 rounded hover:bg-slate-100 transition-colors duration-150"
+                className="p-1.5 text-[var(--text-muted)] hover:text-[var(--text-primary)] rounded-lg hover:bg-[var(--bg-hover)] transition-all duration-200"
               >
                 <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
@@ -75,9 +82,16 @@ export default function Modal({
           </div>
 
           {/* Content */}
-          <div className="max-h-[calc(100vh-10rem)] overflow-y-auto">
+          <div className="max-h-[calc(100vh-12rem)] overflow-y-auto p-5">
             {children}
           </div>
+
+          {/* Footer */}
+          {footer && (
+            <div className="flex items-center justify-end gap-3 px-5 py-4 border-t border-[var(--border-primary)]">
+              {footer}
+            </div>
+          )}
         </div>
       </div>
     </div>

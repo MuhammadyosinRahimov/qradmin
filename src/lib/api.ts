@@ -151,6 +151,8 @@ export const cancelOrderItem = (orderId: string, itemId: string, reason?: string
   api.post(`/admin/orders/${orderId}/items/${itemId}/cancel`, { reason });
 export const confirmPendingItems = (orderId: string) =>
   api.post(`/admin/orders/${orderId}/items/confirm`);
+export const dismissWaiter = (orderId: string) =>
+  api.post(`/admin/orders/${orderId}/dismiss-waiter`);
 
 // Table Sessions
 export const getTableSessions = (restaurantId?: string, sessionStatus?: string) =>
